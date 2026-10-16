@@ -1,0 +1,53 @@
+--- a/runtime/src/main.cpp
++++ b/runtime/src/main.cpp
+@@ -287,6 +287,18 @@
+ /* Lightweight counters for the browser's opt-in performance HUD. They expose
+  * rates only; no game state or user data leaves the page. */
+ static std::atomic<uint64_t> g_web_perf_vblanks{0};
++static std::atomic<uint32_t> g_fish_web_pad{0xFFFFu};
++static std::atomic<uint32_t> g_fish_web_pad_applied{0xFFFFu};
++extern "C" EMSCRIPTEN_KEEPALIVE void psx_web_set_pad_buttons(uint32_t word) {
++    g_fish_web_pad.store(word & 0xFFFFu, std::memory_order_release);
++}
++extern "C" EMSCRIPTEN_KEEPALIVE uint32_t psx_web_get_pad_buttons(void) {
++    return g_fish_web_pad_applied.load(std::memory_order_acquire);
++}
++extern "C" EMSCRIPTEN_KEEPALIVE int psx_web_debug_cdda_track(void) {
++    return cdrom_cdda_track();
++}
++
+ static std::atomic<uint64_t> g_web_perf_pacer_wait_us{0};
+ static std::atomic<uint64_t> g_web_perf_present_us{0};
+ #endif
+@@ -2376,22 +2388,16 @@
+             btn &= dev_all_controllers_buttons();  /* any plugged-in controller too */
+         }
+ #if defined(PSX_WEB)
++        /* Reliable browser-thread -> guest-thread pad bridge. Main-thread
++         * DOM/Gamepad events are published atomically and merged active-low
++         * here before SIO consumes the pad frame. */
+         if (s == 0) {
+-            const int start_down = (btn & (uint16_t)PAD_START) == 0;
+-            const int start_edge = start_down && !g_web_start_was_down;
+-            g_web_start_was_down = start_down;
+-            const int track = cdrom_cdda_track();
+-            if (track >= 2 && track <= 6) {
+-                if (start_edge)
+-                    g_web_pause_request.store(1, std::memory_order_release);
+-                /* The Web QoL menu owns Start during gameplay. Pepsiman never
+-                 * receives its original pause toggle, eliminating nested pause
+-                 * state and controller-timing races. Injected reset commands
+-                 * use the override path above and intentionally bypass this. */
+-                btn |= (uint16_t)PAD_START;
+-            }
+-        }
+-#endif
++            btn &= (uint16_t)g_fish_web_pad.load(std::memory_order_acquire);
++            g_fish_web_pad_applied.store(btn, std::memory_order_release);
++        }
++#endif
++/* Fisherman-specific runtime: do not swallow PS1 START based on CD audio track.
++ * The prior block was Pepsiman-specific, but it affected every Web game. */
+         sio_set_pad_state_slot(s, btn);
+ 
+         /* Resolve the pad type this frame. An assigned device keeps its configured

@@ -37,9 +37,10 @@ pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:aut
     <aside class="side">
       <h2>Pronto para jogar</h2>
       <p class="note">O jogo será carregado automaticamente do servidor local. Não é necessário selecionar o disco ou apertar Iniciar no site.</p>
-      <button id="reload">Reiniciar jogo</button>
+      <button id="enableAudio">Ativar som e focar controles</button>
+      <button class="secondary" id="reload">Reiniciar jogo</button>
       <button class="secondary" id="fullscreen">Tela cheia</button>
-      <p class="note">Teclado: setas para mover; Enter = START; X = botão X do PS1; S = círculo; Z = quadrado; A = triângulo. Controle USB/Bluetooth pela Gamepad API. Se não houver som, clique na tela do jogo para ativar o áudio. Versão experimental: menus e gameplay ainda em validação. O carregamento pode levar um minuto ou mais, conforme sua conexão e dispositivo.</p>
+      <p class="note">Clique no botão "Ativar som e focar controles" depois de carregar. Teclado: setas para mover; Enter = START; X = botão X do PS1; S = círculo; Z = quadrado; A = triângulo. Controle USB/Bluetooth pela Gamepad API. Se não houver som, clique na tela do jogo para ativar o áudio. Versão experimental: Start, GAME e MODE SELECT funcionando; áudio ainda em otimização, com cortes possíveis. O carregamento pode levar um minuto ou mais, conforme sua conexão e dispositivo.</p>
     </aside>
   </div>
   <pre id="log" aria-label="Log de diagnóstico"></pre>
@@ -72,6 +73,79 @@ pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:aut
     onAbort: function(reason) {setStatus('Runtime interrompido. Consulte o log.'); log('ABORT: ' + reason);}
   };
   reloadButton.addEventListener('click', function() { window.location.reload(); });
+  var audioButton = document.getElementById('enableAudio');
+  async function enableSound() {
+    canvas.focus({preventScroll:true});
+    try {
+      var state = window.Module && window.Module.psxWebAudio;
+      if (!state || !state.context) {
+        audioButton.textContent='Áudio ainda não inicializado — tente novamente';
+        return;
+      }
+      if (state.context.state !== 'running') await state.context.resume();
+      audioButton.textContent = state.context.state === 'running'
+        ? 'Saída de áudio desbloqueada · controles ativos' : 'Áudio bloqueado · tente novamente';
+      log('AudioContext: ' + state.context.state);
+    } catch (error) {
+      log('Não foi possível habilitar áudio: ' + error.message);
+      audioButton.textContent='Tentar ativar som novamente';
+    }
+  }
+  audioButton.addEventListener('click', enableSound);
+  canvas.addEventListener('pointerdown', function() {
+    canvas.focus({preventScroll:true});
+    void enableSound();
+  });
+  document.addEventListener('keydown', function(event) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(event.key)
+        && document.activeElement === canvas) event.preventDefault();
+  }, true);
+
+  // Game input is transferred directly into the PS1 SIO pad sampler in the
+  // isolated Fish WebAssembly build. SDL still handles physical inputs as before.
+  var pressedKeys = new Set();
+  var controlsReady = false;
+  var keyboardCodes = {
+    Enter:3, NumpadEnter:3, ArrowUp:4, ArrowRight:5, ArrowDown:6, ArrowLeft:7,
+    KeyX:14, KeyS:13, KeyZ:15, KeyA:12,
+    KeyQ:10, KeyW:11, KeyE:8, KeyR:9, ShiftRight:0
+  };
+  window.addEventListener('keydown',function(event) {
+    if (Object.prototype.hasOwnProperty.call(keyboardCodes,event.code)) {
+      pressedKeys.add(event.code);
+      if (document.activeElement===canvas && event.code.startsWith('Arrow'))
+        event.preventDefault();
+    }
+  },true);
+  window.addEventListener('keyup',function(event) { pressedKeys.delete(event.code); },true);
+  window.addEventListener('blur',function() { pressedKeys.clear(); });
+  var gamepadBitIndex = {0:14,1:13,2:15,3:12,4:10,5:11,6:8,7:9,8:0,9:3,12:4,13:6,14:7,15:5};
+  function publishPad() {
+    if (started && typeof Module._psx_web_set_pad_buttons === 'function') {
+      if (!controlsReady) { controlsReady=true; log('Ponte de teclado/gamepad conectada ao SIO do PS1'); }
+      var word=65535;
+      pressedKeys.forEach(function(key) {
+        if (Object.prototype.hasOwnProperty.call(keyboardCodes,key)) word &= ~(1 << keyboardCodes[key]);
+      });
+      try {
+        Array.from(navigator.getGamepads()||[]).forEach(function(pad) {
+          if (!pad || !pad.connected) return;
+          Object.keys(gamepadBitIndex).forEach(function(key) {
+            if (pad.buttons[key] && pad.buttons[key].pressed) word &= ~(1 << gamepadBitIndex[key]);
+          });
+          if (pad.axes.length >= 2) {
+            if (pad.axes[0] < -0.4) word &= ~(1 << 7);
+            if (pad.axes[0] > 0.4) word &= ~(1 << 5);
+            if (pad.axes[1] < -0.4) word &= ~(1 << 4);
+            if (pad.axes[1] > 0.4) word &= ~(1 << 6);
+          }
+        });
+      } catch (error) { /* Browsers can deny Gamepad API until a user gesture. */ }
+      Module._psx_web_set_pad_buttons(word);
+    }
+    requestAnimationFrame(publishPad);
+  }
+  requestAnimationFrame(publishPad);
   document.getElementById('fullscreen').addEventListener('click', function() {
     if (document.fullscreenElement) { document.exitFullscreen(); }
     else { canvas.requestFullscreen().catch(function(err){log(err);}); }
@@ -126,7 +200,7 @@ pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:aut
   }
   function config(name) {
     if (/["\\\r\n]/.test(name)) throw Error('Nome de arquivo de disco inválido');
-    return '[game]\nname = "Fishermans Bait 2"\nid = "SLUS-00999"\nexe = "/game/SLUS_009.99"\ndisc = "/game/disc/' + name + '"\nload_address = "0x80010000"\nentry_pc = "0x8009A7C8"\ntext_size = "0x000B1000"\nstack_base = "0x801FFFF0"\n\n[recompiler]\nseeds = "seeds.txt"\nstrict = true\nout_dir = "generated"\n\n[runtime]\ndebug_port = 0\nwindow_title = "Fishermans Bait 2 Web"\nmemcard_dir = "/saves"\ndisc_speed = "1x"\nbios_hle = false\nfast_boot = false\noverlay_cache = false\noverlay_backend = "interp"\nhle_scheduler = true\n\n[video]\nrenderer = "software"\nsupersampling = 1\ntexture_filtering = "nearest"\naspect_ratio = "4:3"\n\n[controller]\ndefault_analog = false\ndeadzone = 12000\n';
+    return '[game]\nname = "Fishermans Bait 2"\nid = "SLUS-00999"\nexe = "/game/SLUS_009.99"\ndisc = "/game/disc/' + name + '"\nload_address = "0x80010000"\nentry_pc = "0x8009A7C8"\ntext_size = "0x000B1000"\nstack_base = "0x801FFFF0"\n\n[recompiler]\nseeds = "seeds.txt"\nstrict = true\nout_dir = "generated"\n\n[runtime]\ndebug_port = 0\nwindow_title = "Fishermans Bait 2 Web"\nmemcard_dir = "/saves"\ndisc_speed = "1x"\nbios_hle = false\nfast_boot = false\noverlay_cache = false\noverlay_backend = "interp"\nhle_scheduler = true\n\n[video]\nrenderer = "software"\nsupersampling = 1\ntexture_filtering = "nearest"\naspect_ratio = "4:3"\n\n[controller]\ndefault_analog = false\ndeadzone = 12000\ndefault_mode = "digital"\nlock_mode = true\n';
   }
   async function downloadDisc() {
     setStatus('Baixando a imagem do jogo do servidor…');

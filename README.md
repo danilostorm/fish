@@ -30,7 +30,7 @@ The user's disc was inspected directly on 2026-10-16. It is a valid BIN/CUE Play
 2. **Codegen — complete**: PSXRecomp detected 2,277 functions and generated C for 2,317 entries (including 40 branch-target repair entries), producing ~1.74 million lines of C and a dispatch table. More dynamic code investigations remain.
 3. **Browser WASM build — complete**: Emscripten 4.0.23 produced a 14,186,692-byte WebAssembly binary, JS glue and HTML shell. Compilation/linking exited 0.
 4. **Browser runtime — partly tested**: Chromium loaded the WASM, accepted local BIN/CUE, extracted SLUS_009.99, loaded OpenBIOS and entered BIOS at `0xBFC00000` with no JS errors. With the standard BIOS a green cube animation and black screen appeared; switching to OpenBIOS Fastboot reached the game's Konami intro at 35 seconds and PRESS START BUTTON at 55 seconds.
-5. **Start input and gameplay — in progress**: START advanced past the title to Willow Lake; fishing gameplay, audio, streamed content, saves, mobile and TV still need comprehensive validation.
+5. **Start input and gameplay — verified through menus**: the isolated browser-input WebAssembly build receives Start (0xFFF7) and Cross (0xBFFF) through the PS1 SIO pad sampler and Chromium progressed from the animated title screen to GAME and MODE SELECT (Beginner, Tournament, Free Fishing, World Monsters). Fishing gameplay remains unverified. Audio is generated but severe underruns remain.
 
 PSXRecomp is a **native recompiler/runtime**. It does **not** automatically turn any PS1 game into a working browser port. A working PS1 browser backend is part of the engineering required here. See [browser road map](docs/WEB_PORT_ROADMAP.md).
 
@@ -78,3 +78,13 @@ To rebuild WASM on AEROCOOL use the `emscripten/emsdk:4.0.23` container with a c
 ## Legal and distribution
 
 The public Git repository excludes original game BIN/CUE, executables and assets, generated C retaining original game code, and assembled binaries. This private developer preview serves the local disc over exact-file HTTP routes to support auto boot; access to those URLs gives access to the game content. Keep it private, and only distribute game materials with permission. OpenBIOS is a separately licensed component of the browser package. Konami and PlayStation remain trademarks of their respective owners.
+
+## Input and audio findings (2026-10-16)
+
+- The original shared PSXRecomp web runtime includes Pepsiman-specific interception that can swallow START while CDDA tracks 2–6 play. For Fish we removed this interception in an isolated runtime fork only.
+- Added an atomic browser-to-PS1 pad bridge. Main-thread keyboard/Gamepad polling calls `psx_web_set_pad_buttons(word)`; the guest-side sampler merges it into Port 1 before SIO. A 72-second Chromium test observed active-low `FFF7` for Enter and `BFFF` for X, then reached GAME and MODE SELECT. This is real menu progress, not an attract-mode slideshow.
+- Sound: WebAudio receives nonzero PCM and an unlock button can resume the browser AudioContext. However Chromium still reported **616 audio underruns** with only **34.5 emulated vblanks/sec** measured over 38 real seconds. Audio quality is **not yet fixed**; improving emulation speed is the next bottleneck.
+- The host-only patched runtime is located at `private/fish-psxrecomp` and excluded from GitHub. The portable change set is under `patches/fish-web-input.patch` and is applied to a compatible isolated PSXRecomp checkout with `patch -p1`. Do not patch the shared RepsiMan runtime.
+- WebAssembly rebuilt on AEROCOOL with Emscripten 4.0.23 and `-DPSX_LAUNCHER=OFF` (the native RmlUi launcher is not usable with the browser GL profile). `scripts/package-web.sh` uses `build-web-input` by default; override via `FISH_BUILD_DIR` only when deliberately changing builds.
+
+This LAN preview automatically serves the locally owned disc. The public site configuration should not expose those two game-data endpoints without appropriate redistribution rights.

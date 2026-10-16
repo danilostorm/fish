@@ -4,9 +4,11 @@ cd "$(dirname "$0")/.."
 ROOT="$PWD"
 BIO="${FISH_OPENBIOS_ROOT:-/mnt/user/Games/repsiman/third_party/openbios}"
 BASE="Fishermans_Bait_2___Recompiled"
+# The browser-input build uses the isolated patched runtime.
+BUILD_DIR="${FISH_BUILD_DIR:-build-web-input}"
 for item in "$BASE.js" "$BASE.wasm"; do
-  if [[ ! -s "build-web/$item" ]]; then
-    printf 'Missing Emscripten artifact: build-web/%s\n' "$item" >&2
+  if [[ ! -s "${BUILD_DIR}/$item" ]]; then
+    printf 'Missing Emscripten artifact: %s/%s\n' "$BUILD_DIR" "$item" >&2
     exit 1
   fi
 done
@@ -17,7 +19,7 @@ for item in openbios.bin openbios-fastboot.bin LICENSE; do
   fi
 done
 mkdir -p dist-web
-cp "build-web/$BASE.js" "build-web/$BASE.wasm" dist-web/
+cp "$BUILD_DIR/$BASE.js" "$BUILD_DIR/$BASE.wasm" dist-web/
 cp web/index.html web/_headers dist-web/
 cp "$BIO/openbios.bin" "$BIO/openbios-fastboot.bin" dist-web/
 cp "$BIO/LICENSE" dist-web/OPENBIOS-LICENSE.txt

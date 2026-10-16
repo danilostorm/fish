@@ -1,0 +1,32 @@
+# User-owned game materials; never publish these
+private/
+local/
+disc/
+build/
+build-*/
+*.bin
+*.cue
+*.iso
+*.img
+*.chd
+*.7z
+*.exe
+*.pbp
+*.elf
+*.wasm
+*.data
+*.sav
+*.mcd
+*.mcr
+
+# Translated code can retain the game's protected expression
+generated/
+*_dispatch.c
+*_full_*.c
+
+# Logs/cache
+*.log
+__pycache__/
+*.pyc
+.DS_Store
+.env

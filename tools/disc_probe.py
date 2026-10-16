@@ -138,12 +138,13 @@ def cue_to_bin(path: Path) -> Path:
     if not re.search(r'^\s*TRACK\s+01\s+MODE[12]/2352\s*$', contents, re.I | re.M):
         raise DiscError("Only first data tracks in MODE1/2352 or MODE2/2352 are supported")
     filename = matched.group(1) or matched.group(2)
-    target = (path.parent / filename).resolve()
-    if target.parent != path.parent.resolve():
-        raise DiscError("CUE track must be in the same directory as its .cue")
+    track_name = Path(filename)
+    if track_name.is_absolute() or track_name.name != filename or filename in (".", ".."):
+        raise DiscError("CUE track must be a filename in the same directory as its .cue")
+    target = path.parent / track_name
     if not target.exists():
         raise DiscError(f"CUE track was not found: {filename}")
-    return target
+    return target.resolve()
 
 
 def exe_header(payload: bytes) -> dict:

@@ -136,3 +136,9 @@ Removemos do launcher os controles de gráficos compatíveis e de Som adaptativo
 A desaceleração automática de `playbackRate` foi retirada porque afetava tanto a velocidade quanto o pitch da música e dos efeitos. O Web Audio agora é reproduzido sempre em 1,0×, com fila de segurança de 120 ms (160 ms no Windows) e sem a modulação de frequência conforme a taxa de VBlanks. Teste Chromium confirmou `playbackRateScale: 1.0`, o menu PT-BR e a apresentação rápida. **Importante:** se a execução produzir amostras abaixo do tempo real, ainda podem ocorrer cortes; suavização completa sem alterar o tom exige uma estratégia de time-stretch adequada ou maior velocidade da emulação.
 
 O histórico de testes de áudio adaptativo permanece em `docs/AUDIO_WEB_STABILITY.md`, mas descreve um estágio anterior e não o padrão atual.
+
+## Todos os sons picotando — saída WSOLA experimental
+
+Para evitar falhas em **música e efeitos**, o player agora usa `web/audio-wsola.js`, um alongador de áudio PCM estéreo com sobreposição de janelas similares. Ele estabiliza o fluxo quando o PS1 recompilado gera menos de 44,1k amostras/segundo em tempo real. Diferentemente do antigo modo adaptativo, o `AudioBufferSourceNode.playbackRate` permanece 1,0× e o tom não é reduzido artificialmente. **O andamento pode continuar mais lento enquanto a emulação estiver abaixo de 60 ciclos/s** e transientes podem sofrer leves artefatos. O processamento não modifica os arquivos PT-BR nem a simulação.
+
+Em teste real no Chromium AEROCOOL, o WSOLA v2 ficou 30 segundos sem underruns ou descartes a 45–51 ciclos/s; outro teste de 24 segundos teve um único underrun e nenhum descarte. O teste de seno 440 Hz confirmou a frequência nominal após o processamento. Veja [diagnóstico completo e limitações](docs/AUDIO_WSOLA.md).

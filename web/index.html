@@ -271,6 +271,7 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     <p class="muted" id="modalNote">Áudio em velocidade e tom originais, sem efeito de câmera lenta. O launcher não inventa estatísticas nem salvamentos.</p>
   </div>
 </div>
+<script src="audio-wsola.js"></script>
 <script>
 'use strict';
 (function () {
@@ -457,32 +458,47 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     }
   }
   audioButton.addEventListener('click', enableSound);
-  // Preserve CDDA/music and all SFX at their original pitch and speed.
-  // AudioBufferSourceNode.playbackRate changes PITCH as well as duration.
-  // Never decrease the sample playback rate based on emulated VBlank rate.
+  // The game may only produce ~33k source frames/second while emulating at
+  // ~45 VBlanks/s. WebAudio always consumes 44.1k frames/second. Previous
+  // playbackRate compensation made *all* audio slow and deep; buffering alone
+  // just postpones starvation. Streaming WSOLA makes extra frames WITHOUT
+  // lowering the musical pitch or changing the AudioContext sample rate.
   var perfStateNode = document.getElementById('perfState');
   var audioLastFrames = null, audioLastTime = null;
   function prepareStableAudio(state) {
     if (!state || !state.context) return;
     var isWin = /Windows|Win32/i.test(navigator.userAgent || navigator.platform || '');
-    state.targetLead = Math.max(Number(state.targetLead)||0, isWin ? 0.16 : 0.12);
+    state.targetLead = Math.max(Number(state.targetLead)||0, isWin ? 0.190 : 0.175);
     state.playbackRateScale = 1.0;
-    if (!state._fishOriginalPitchLogged) {
-      state._fishOriginalPitchLogged = true;
-      log('Áudio original: 44,1 kHz, reprodução 1,0×, reserva '+Math.round(state.targetLead*1000)+' ms');
+    if (state._fishWsolaAttached && state.fishWsolaSubmit !== state.submitPcm) {
+      // SDL/PSX runtime may re-create submitPcm after a device reopen.
+      state._fishWsolaAttached=false;
+    }
+    if (!state._fishWsolaAttached && window.FishAudioStretch) {
+      try {
+        window.FishAudioStretch.attach(state,Module,{targetLead:state.targetLead});
+        log('Áudio com tom preservado: WSOLA ativado, reserva '+Math.round(state.targetLead*1000)+'ms');
+      } catch (error) {
+        log('WSOLA indisponível, mantendo áudio original: '+error.message);
+      }
     }
   }
   setInterval(function() {
     var state=Module.psxWebAudio;
     if (state) prepareStableAudio(state);
     if (!started || typeof Module._psx_web_perf_vblanks !== 'function') return;
-    var now = performance.now(), frames = Module._psx_web_perf_vblanks();
+    var now=performance.now(),frames=Module._psx_web_perf_vblanks();
     if (audioLastFrames !== null) {
-      var fps = (frames - audioLastFrames) * 1000 / Math.max(1, now - audioLastTime);
-      perfStateNode.textContent = fps.toFixed(0) + ' ciclos/s · áudio na velocidade original';
+      var fps=(frames-audioLastFrames)*1000/Math.max(1,now-audioLastTime);
+      if (state && state._fishWsolaAttached && fps > 18 && fps < 85) {
+        var desired=Math.max(1,Math.min(1.80,59.94/fps));
+        var prior=Number(state.fishStretchRatio)||1.25;
+        state.fishStretchRatio=prior*0.70+desired*0.30;
+      }
+      perfStateNode.textContent=fps.toFixed(0)+' ciclos/s · áudio sem alteração de tom';
     }
-    audioLastFrames = frames; audioLastTime = now;
-  }, 1000);
+    audioLastFrames=frames;audioLastTime=now;
+  },1000);
 
   canvas.addEventListener('pointerdown', function() {
     canvas.focus({preventScroll:true});

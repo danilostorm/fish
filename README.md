@@ -128,3 +128,11 @@ As atualizações do renderizador são código aberto em `patches/fish-webgl-per
 ## Sincronização de áudio no navegador
 
 O player agora inicia com Som adaptativo ativado e controla a reserva Web Audio (120 ms, pelo menos 160 ms no Windows) usando o nível da fila para reduzir cortes sem parar o jogo. O usuário pode desativar o modo pelo botão do player, voltando à taxa/pitch originais, mas isso pode produzir mais interrupções quando a emulação estiver abaixo da velocidade real. O teste isolado registrou 0 interrupções e 0 descartes em 18 segundos no modo estável, contra 31 interrupções no modo original no mesmo navegador. Há um compromisso: áudio adaptativo pode soar mais grave quando o motor está lento. Consulte [diagnóstico de áudio](docs/AUDIO_WEB_STABILITY.md).
+
+## Correção: somente gráficos rápidos e áudio na velocidade original (2026-10-16)
+
+Removemos do launcher os controles de gráficos compatíveis e de Som adaptativo. A apresentação WebGL2 permanece automática em navegadores compatíveis; o motor não permite mais selecionar o antigo modo lento pela interface (inclusive URLs legadas `?video=compat` não ativam esse modo). O caminho de software pode continuar como proteção interna caso WebGL2 não esteja disponível.
+
+A desaceleração automática de `playbackRate` foi retirada porque afetava tanto a velocidade quanto o pitch da música e dos efeitos. O Web Audio agora é reproduzido sempre em 1,0×, com fila de segurança de 120 ms (160 ms no Windows) e sem a modulação de frequência conforme a taxa de VBlanks. Teste Chromium confirmou `playbackRateScale: 1.0`, o menu PT-BR e a apresentação rápida. **Importante:** se a execução produzir amostras abaixo do tempo real, ainda podem ocorrer cortes; suavização completa sem alterar o tom exige uma estratégia de time-stretch adequada ou maior velocidade da emulação.
+
+O histórico de testes de áudio adaptativo permanece em `docs/AUDIO_WEB_STABILITY.md`, mas descreve um estágio anterior e não o padrão atual.

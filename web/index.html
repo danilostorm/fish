@@ -238,8 +238,6 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     <div class="gamebar-title"><img src="assets/logo.png" alt="Big Ol' Bass"><span class="runtime-badge"><span class="pulse"></span> WebAssembly</span></div>
     <div class="gamebar-controls">
       <button id="enableAudio" type="button">🔊 Ativar som</button>
-      <button id="adaptiveAudio" type="button">Som adaptativo: ativado</button>
-      <button id="rendererMode" type="button">Gráficos: preparando</button>
       <button id="reload" type="button">↻ Reiniciar</button>
       <button id="fullscreen" type="button">⛶ Tela cheia</button>
       <button id="closeGame" type="button">✕ Sair do jogo</button>
@@ -270,7 +268,7 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     <h2>⚙ Configurações do jogo</h2>
     <p>O jogo é recompilado para WebAssembly. Arquivos do seu navegador são carregados automaticamente no runtime, sem pedir seleção manual.</p>
     <div class="modal-actions"><button id="modalPlay">▶ Jogar</button><button id="modalControls">🎮 Ver controles</button></div>
-    <p class="muted" id="modalNote">Som adaptativo é experimental e fica desativado por padrão. O launcher não inventa estatísticas nem salvamentos.</p>
+    <p class="muted" id="modalNote">Áudio em velocidade e tom originais, sem efeito de câmera lenta. O launcher não inventa estatísticas nem salvamentos.</p>
   </div>
 </div>
 <script>
@@ -291,26 +289,21 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     console.info('[FISH]',str);
   }
   function setStatus(s) { statusNode.textContent = s; }
-  function compatibilityUrl() {
-    var url=new URL(window.location.href);
-    url.searchParams.set('video','compat');
-    return url.href;
-  }
-  function graphicsCompatSelected() {
-    return new URLSearchParams(window.location.search).get('video')==='compat';
-  }
   // Fish experimental main-thread WebGL2 presenter (without SDL GL contexts).
   function initFastRenderer() {
     var canvasFast=document.getElementById('fishFastCanvas');
-    if (!canvasFast || graphicsCompatSelected()) return false;
+    if (!canvasFast) return false;
     var gl=canvasFast.getContext('webgl2',{alpha:false,antialias:false,depth:false,stencil:false,preserveDrawingBuffer:true,powerPreference:'high-performance'});
     if(!gl) {log('WebGL2 unavailable; using software renderer');return false;}
     function disableFastGraphics(reason) {
       if (Module.fishWebPresenter && Module.fishWebPresenter.failed) return;
       if (Module.fishWebPresenter) Module.fishWebPresenter.failed=true;
-      log('Falha no modo gráfico rápido: '+reason+'. Reiniciando em modo compatível.');
-      setStatus('Reiniciando em modo gráfico compatível…');
-      window.location.replace(compatibilityUrl());
+      log('Renderização WebGL2 interrompida: '+reason+'. Recarregue a página para tentar novamente.');
+      setStatus('Falha na aceleração gráfica. Reinicie o jogo.');
+      // In an exceptional GPU-device-loss case, release the emulation-side
+      // direct-present path. No user-facing renderer picker is exposed.
+      try { if (typeof Module._fish_web_set_direct_present === 'function') Module._fish_web_set_direct_present(0); } catch (_) {}
+      canvasFast.style.visibility='hidden';
     }
     function shader(type,src) {
       var sh=gl.createShader(type);gl.shaderSource(sh,src);gl.compileShader(sh);
@@ -361,17 +354,20 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     print: function() {log(Array.from(arguments).join(' '));},
     printErr: function() {log(Array.from(arguments).join(' '));},
     setStatus: setStatus,
-    onRuntimeInitialized: function() { runtimeReady = true; if(typeof Module._fish_web_set_direct_present=== "function" && initFastRenderer()){Module._fish_web_set_direct_present(1);document.getElementById("rendererMode").textContent="Gráficos: rápidos ↻";log("Renderização WebGL2 ativada");} else {document.getElementById("rendererMode").textContent="Gráficos: compatíveis ↻";} setStatus('Runtime pronto. Carregando o disco automaticamente…'); if (!overlay.hidden) setTimeout(autostart, 0); },
+    onRuntimeInitialized: function() {
+      runtimeReady = true;
+      if (typeof Module._fish_web_set_direct_present === 'function' && initFastRenderer()) {
+        Module._fish_web_set_direct_present(1);
+        log('Renderização rápida WebGL2 ativada');
+      } else {
+        log('WebGL2 não disponível. A execução poderá ser lenta neste navegador.');
+      }
+      setStatus('Runtime pronto. Carregando o disco automaticamente…');
+      if (!overlay.hidden) setTimeout(autostart, 0);
+    },
     onAbort: function(reason) {setStatus('Runtime interrompido. Consulte o log.'); log('ABORT: ' + reason);}
   };
   reloadButton.addEventListener('click', function() { window.location.reload(); });
-  document.getElementById('rendererMode').addEventListener('click',function(){
-    var url=new URL(window.location.href);
-    if(graphicsCompatSelected()) url.searchParams.delete('video');
-    else url.searchParams.set('video','compat');
-    window.location.assign(url.href); // Restart renderer safely; avoid black frames.
-  });
-
   var overlay = document.getElementById('gameOverlay');
   var focusBefore = null;
   function showGame() {
@@ -451,7 +447,7 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
         return;
       }
       if (state.context.state !== 'running') await state.context.resume();
-      stabilizeFishAudio(state);
+      prepareStableAudio(state);
       audioButton.textContent = state.context.state === 'running'
         ? 'Saída de áudio desbloqueada · controles ativos' : 'Áudio bloqueado · tente novamente';
       log('AudioContext: ' + state.context.state);
@@ -461,69 +457,32 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     }
   }
   audioButton.addEventListener('click', enableSound);
-  var adaptiveAudioButton = document.getElementById('adaptiveAudio');
-  // Default to buffer-stabilized audio. The original 44.1 kHz pitch/speed
-  // remains user-selectable; adaptively slowing PCM is opt-in/out in the UI.
-  var adaptiveAudioEnabled = true;
-  function stabilizeFishAudio(state) {
-    if (!state || !state.context || !state.submitPcm || state._fishAudioStabilized) return;
-    var isWin = /Windows|Win32/i.test(navigator.userAgent || navigator.platform || '');
-    // The original interactive profile's 30ms queue ran dry constantly at
-    // the observed 44-54 guest vblanks/sec. Use a moderate safety lead.
-    state.targetLead = Math.max(Number(state.targetLead)||0, isWin ? 0.16 : 0.12);
-    var originalSubmit = state.submitPcm;
-    state.submitPcm = function(ptr, len) {
-      // Never accumulate stale audio while the browser is denying autoplay.
-      if (state.context.state !== 'running') {
-        state.started = false;
-        state.nextTime = state.context.currentTime;
-        return;
-      }
-      var nominal = Number(state.playbackRateScale);
-      if (!Number.isFinite(nominal) || nominal <= 0) nominal = 1;
-      // A queue-pressure loop gently increases consumption if the buffer
-      // grows, or slows it if the next chunk risks a gap. Without this,
-      // an underrun/dropped chunk repeats even with 120ms prebuffer.
-      var lead = Math.max(0, (Number(state.nextTime)||0) - state.context.currentTime);
-      var correction = Math.max(-0.12, Math.min(0.18,
-        (lead - state.targetLead) * 1.6));
-      var current = adaptiveAudioEnabled
-        ? Math.max(0.55, Math.min(1, nominal + correction)) : 1;
-      state.playbackRateScale = current;
-      try {
-        return originalSubmit.call(state, ptr, len);
-      } finally {
-        state.playbackRateScale = nominal;
-      }
-    };
-    state._fishAudioStabilized = true;
-    log('Áudio sincronizado: reserva '+Math.round(state.targetLead*1000)+' ms');
-  }
+  // Preserve CDDA/music and all SFX at their original pitch and speed.
+  // AudioBufferSourceNode.playbackRate changes PITCH as well as duration.
+  // Never decrease the sample playback rate based on emulated VBlank rate.
   var perfStateNode = document.getElementById('perfState');
   var audioLastFrames = null, audioLastTime = null;
-  adaptiveAudioButton.addEventListener('click', function() {
-    adaptiveAudioEnabled = !adaptiveAudioEnabled;
-    adaptiveAudioButton.textContent = 'Som adaptativo: ' + (adaptiveAudioEnabled ? 'ativado' : 'desativado');
-    if (Module.psxWebAudio) Module.psxWebAudio.playbackRateScale = 1;
-    void enableSound();
-  });
+  function prepareStableAudio(state) {
+    if (!state || !state.context) return;
+    var isWin = /Windows|Win32/i.test(navigator.userAgent || navigator.platform || '');
+    state.targetLead = Math.max(Number(state.targetLead)||0, isWin ? 0.16 : 0.12);
+    state.playbackRateScale = 1.0;
+    if (!state._fishOriginalPitchLogged) {
+      state._fishOriginalPitchLogged = true;
+      log('Áudio original: 44,1 kHz, reprodução 1,0×, reserva '+Math.round(state.targetLead*1000)+' ms');
+    }
+  }
   setInterval(function() {
+    var state=Module.psxWebAudio;
+    if (state) prepareStableAudio(state);
     if (!started || typeof Module._psx_web_perf_vblanks !== 'function') return;
     var now = performance.now(), frames = Module._psx_web_perf_vblanks();
     if (audioLastFrames !== null) {
       var fps = (frames - audioLastFrames) * 1000 / Math.max(1, now - audioLastTime);
-      var target = adaptiveAudioEnabled ? Math.max(0.45,Math.min(1,fps/59.94)) : 1;
-      var audioState = Module.psxWebAudio;
-      if (audioState) {
-        stabilizeFishAudio(audioState);
-        var prev = Number(audioState.playbackRateScale) || 1;
-        audioState.playbackRateScale = adaptiveAudioEnabled ? prev*0.3 + target*0.7 : 1;
-      }
-      perfStateNode.textContent = fps.toFixed(0) + ' ciclos/s' +
-        (adaptiveAudioEnabled ? ' · áudio adaptativo ' + Math.round(target*100) + '%' : '');
+      perfStateNode.textContent = fps.toFixed(0) + ' ciclos/s · áudio na velocidade original';
     }
     audioLastFrames = frames; audioLastTime = now;
-  }, 2000);
+  }, 1000);
 
   canvas.addEventListener('pointerdown', function() {
     canvas.focus({preventScroll:true});

@@ -10,7 +10,7 @@ for item in "$BASE.js" "$BASE.wasm"; do
     exit 1
   fi
 done
-for item in openbios.bin LICENSE; do
+for item in openbios.bin openbios-fastboot.bin LICENSE; do
   if [[ ! -s "$BIO/$item" ]]; then
     printf 'Missing legal OpenBIOS file: %s\n' "$BIO/$item" >&2
     exit 1
@@ -19,7 +19,7 @@ done
 mkdir -p dist-web
 cp "build-web/$BASE.js" "build-web/$BASE.wasm" dist-web/
 cp web/index.html web/_headers dist-web/
-cp "$BIO/openbios.bin" dist-web/
+cp "$BIO/openbios.bin" "$BIO/openbios-fastboot.bin" dist-web/
 cp "$BIO/LICENSE" dist-web/OPENBIOS-LICENSE.txt
 # Only allow listed distribution entries. Do not copy user-owned .bin/.cue.
 if find dist-web -mindepth 1 -maxdepth 1 -name '*.cue' | grep -q .; then

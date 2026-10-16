@@ -21,6 +21,8 @@ done
 mkdir -p dist-web
 cp "$BUILD_DIR/$BASE.js" "$BUILD_DIR/$BASE.wasm" dist-web/
 cp web/index.html web/_headers dist-web/
+mkdir -p dist-web/assets
+cp -a web/assets/. dist-web/assets/
 cp "$BIO/openbios.bin" "$BIO/openbios-fastboot.bin" dist-web/
 cp "$BIO/LICENSE" dist-web/OPENBIOS-LICENSE.txt
 # Only allow listed distribution entries. Do not copy user-owned .bin/.cue.

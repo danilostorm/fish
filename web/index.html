@@ -2,50 +2,272 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#06162a">
-<title>Fisherman's Bait 2 — Web Recomp (Alpha)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#04152c">
+<meta name="description" content="Fisherman's Bait 2: Big Ol' Bass — um clássico de pesca do PlayStation recompilado para rodar no navegador.">
+<title>Fisherman's Bait 2: Big Ol' Bass • HostStorm</title>
+<link rel="icon" href="assets/logo.png" type="image/png">
 <style>
-:root { color-scheme: dark; font: 16px/1.5 system-ui, sans-serif; background:#061523; color:#ecfaff; }
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 0%,#164762 0%,#091c2d 44%,#061523 100%);min-height:100vh}
-header{padding:20px max(20px,calc((100vw - 1160px)/2));border-bottom:1px solid #286075;display:flex;align-items:center;justify-content:space-between;gap:12px}
-.brand{font-weight:900;letter-spacing:.12em;font-size:13px;color:#8bdded}.chip{font-size:11px;color:#f8d28d;border:1px solid #897343;padding:5px 9px;border-radius:999px}
-main{max-width:1160px;margin:0 auto;padding:24px 20px 36px}h1{font-size:clamp(30px,4vw,52px);letter-spacing:-.04em;margin:0 0 10px}
-.lead{color:#acc9d5;max-width:780px;margin:0 0 25px}.layout{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:20px}
-.player{background:#02080e;border:1px solid #387487;border-radius:18px;overflow:hidden;min-height:320px;display:flex;flex-direction:column}
-canvas{width:100%;aspect-ratio:4/3;max-height:min(64vh,650px);display:block;object-fit:contain;image-rendering:pixelated;background:#020508;outline:0}
-.bar{padding:12px 17px;background:#0b2636;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;color:#91ccda}
-.side{background:rgba(12,43,61,.87);border:1px solid #2d6175;border-radius:18px;padding:20px}h2{font-size:17px;margin:0 0 10px}
-label{display:block;font-size:13px;margin-bottom:8px;color:#badce3}input[type=file]{max-width:100%;font-size:12px;margin-bottom:18px}
-button{width:100%;padding:13px 15px;color:#03212b;font-weight:800;background:#53d6da;border:0;border-radius:10px;cursor:pointer}
-button:disabled{opacity:.55;cursor:not-allowed}button.secondary{margin-top:8px;background:transparent;color:#a7ebf1;border:1px solid #387487}
-.note{font-size:12px;color:#a9c6d2;margin-top:18px}
-pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:auto;white-space:pre-wrap;border:1px solid #235165;border-radius:12px;background:#071723;padding:15px}
-@media(max-width:850px){.layout{grid-template-columns:1fr}.side{order:-1}header{padding-inline:18px}}
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f4faff;color-scheme:dark;background:#041224;--line:#117de0;--navy:#03152b;--glass:rgba(2,19,41,.87);--cyan:#03d4ff;--muted:#b1cbe3}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+[hidden]{display:none!important}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 48% -5%,#1b5287 0%,#031326 55%,#020913 100%);overflow-x:hidden}
+body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(90deg,rgba(0,12,29,.87),rgba(0,24,46,.45),rgba(0,10,26,.87)),url("assets/lake.jpg") center/cover no-repeat;opacity:.30}
+a{color:inherit;text-decoration:none}
+button{font:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid #65f3ff;outline-offset:4px}
+button:disabled{opacity:.5;cursor:not-allowed}
+svg{width:1.2em;height:1.2em;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.shell{max-width:1660px;padding:0 clamp(16px,2.4vw,38px);margin:0 auto}
+.topbar{position:relative;z-index:15;min-height:66px;background:rgba(0,17,38,.80);border-bottom:1px solid rgba(3,188,255,.36);backdrop-filter:blur(24px)}
+.top-inner{min-height:66px;display:flex;align-items:center;gap:28px}
+.identity{display:inline-flex;gap:9px;align-items:center;font-size:24px;font-weight:900;letter-spacing:-.04em;white-space:nowrap}
+.identity .bolt{color:#06c5ff;text-shadow:0 0 18px #21bfff;font-size:31px}
+.topnav{display:flex;align-items:center;gap:5px;flex:1}
+.navlink{font-size:14px;font-weight:600;padding:11px 17px;color:#c4dbf6;border-radius:12px;border:1px solid transparent;white-space:nowrap}
+.navlink:hover,.navlink.selected{background:linear-gradient(180deg,#078ef1,#0754c2);border-color:#0bdbff;color:white;box-shadow:0 0 18px #028de066}
+.iconbtn{background:#032244c9;color:white;border:1px solid #147fc8;border-radius:12px;width:43px;height:43px;display:grid;place-items:center;font-size:19px}
+.iconbtn:hover{border-color:#00ddff;box-shadow:0 0 18px #00b7ff70}
+.top-actions{display:flex;gap:10px}
+.hero{isolation:isolate;position:relative;min-height:395px;margin:0;overflow:hidden;background:linear-gradient(90deg,rgba(2,15,37,.86) 1%,rgba(2,26,57,.17) 57%,rgba(1,13,31,.64) 100%),url("assets/lake.jpg") center 49%/cover no-repeat;border-bottom:1px solid #008eda}
+.hero:before{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,29,54,.90) 0%,transparent 37%,rgba(0,13,39,.04) 100%);pointer-events:none;z-index:0}
+.hero:after{content:"";position:absolute;left:-20%;top:-24%;width:65%;height:150%;transform:rotate(-25deg);background:linear-gradient(90deg,transparent,#01224236,transparent);pointer-events:none}
+.fish-art{position:absolute;z-index:0;width:min(52vw,750px);height:495px;right:17%;top:-68px;background:url("assets/cover.jpg") 68% 56%/135% auto no-repeat;mask-image:radial-gradient(ellipse 55% 46% at 54% 49%,#000 52%,transparent 100%);opacity:.94;filter:saturate(1.35) contrast(1.15) drop-shadow(0 12px 27px #000);transform:rotate(2deg)}
+.hero-content{position:relative;z-index:2;min-height:395px;display:flex;justify-content:space-between;align-items:center;gap:25px;padding-top:22px;padding-bottom:25px}
+.hero-copy{max-width:720px;align-self:center}
+.big-logo{display:block;width:min(100%,650px);max-height:205px;object-fit:contain;object-position:left center;filter:drop-shadow(2px 6px 4px #000a)}
+.hero-copy .tagline{font-size:clamp(18px,2vw,27px);font-weight:750;line-height:1.16;text-shadow:1px 2px 6px #00102d;max-width:530px;margin:9px 0 22px}
+.hero-actions{display:flex;flex-wrap:wrap;gap:12px}
+.cta,.outline{border-radius:13px;padding:13px 23px;min-height:52px;display:inline-flex;align-items:center;justify-content:center;gap:10px;font-weight:850;color:white}
+.cta{background:linear-gradient(180deg,#087eff,#0052e8);border:2px solid #61ffff;box-shadow:0 0 20px #009dffbd,inset 0 0 9px #36dfff7e;font-size:20px}
+.outline{background:rgba(1,25,57,.91);border:1px solid #26aaff;box-shadow:inset 0 0 12px #0d7cee44}
+.cta:hover,.outline:hover{transform:translateY(-2px);filter:brightness(1.15)}
+.feature-stack{display:grid;gap:8px;width:290px;flex-shrink:0}
+.feature{display:flex;gap:14px;align-items:center;background:linear-gradient(110deg,rgba(0,22,48,.92),rgba(2,28,61,.77));border:1px solid #00aaff;border-radius:14px;min-height:67px;padding:12px;box-shadow:0 4px 16px #00102199}
+.feature .big-icon{font-size:28px;line-height:1;color:#00ddfa;width:32px;text-align:center}
+.feature strong{display:block;font-size:15px}.feature small{display:block;color:#bad3e8;font-size:11px;margin-top:2px}
+main.shell{padding-top:16px;padding-bottom:38px}
+.mode-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.mode{overflow:hidden;min-height:135px;position:relative;border-radius:15px;border:2px solid #048bea;text-align:left;background-color:#06274c;color:white;padding:0;box-shadow:0 8px 22px #000b;transition:transform .18s,border-color .18s}
+.mode:before{content:"";position:absolute;inset:0;background-size:cover;background-position:center;filter:saturate(1.15)}
+.mode:nth-child(1):before{background-image:url("assets/lake.jpg");background-position:28% 56%}
+.mode:nth-child(2):before{background-image:url("assets/lake.jpg");background-position:71% 72%}
+.mode:nth-child(3):before{background-image:url("assets/cover.jpg");background-position:78% 53%}
+.mode:nth-child(4):before{background-image:url("assets/lake.jpg");background-position:65% 40%;filter:hue-rotate(40deg) brightness(.7)}
+.mode:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,11,31,.97),rgba(0,23,52,.27) 80%)}
+.mode-info{position:absolute;z-index:1;bottom:14px;left:14px;right:11px;display:flex;align-items:center;gap:13px}
+.mode-icon{font-size:32px;text-shadow:0 3px 6px #001529}
+.mode strong{display:block;font-size:17px;text-shadow:0 2px 5px #000}.mode small{display:block;font-size:11px;color:#f1f8ff}
+.mode .arrow{margin-left:auto;font-size:26px;border:1px solid #13b4f9;border-radius:50%;width:32px;height:32px;text-align:center;line-height:27px}
+.mode:hover{transform:translateY(-4px);border-color:#76efff}
+.dashboard{display:grid;grid-template-columns:1.38fr 1fr .76fr;gap:14px;margin-top:14px}
+.panel{background:linear-gradient(170deg,rgba(3,26,56,.96),rgba(0,14,36,.94));border:1px solid #067de3;border-radius:15px;padding:15px;min-width:0;box-shadow:0 13px 24px #0008}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #174669;padding-bottom:11px;margin-bottom:11px}
+.panel-title{font-size:17px;font-weight:900;display:flex;align-items:center;gap:8px;margin:0}
+.panel-title .symbol{font-size:20px}
+.subtle{color:#aac6e2;font-size:12px}
+.textbtn{padding:4px 5px;border:0;background:transparent;color:#9adfff;font-weight:700;font-size:12px}
+.gallery-layout{display:grid;grid-template-columns:minmax(0,1fr) 100px;gap:9px}
+.gallery-main{height:220px;position:relative;overflow:hidden;border-radius:9px;border:1px solid #148ceb;background:#000}
+.gallery-main img{width:100%;height:100%;object-fit:cover;image-rendering:auto}
+.gallery-thumbs{display:grid;grid-template-rows:repeat(3,1fr);gap:7px}
+.thumb{background:#0a2f50;border:1px solid #058df4;padding:0;overflow:hidden;border-radius:8px;opacity:.86}
+.thumb.active,.thumb:hover{border:2px solid #56dfff;opacity:1}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.controls-row{display:flex;gap:8px;align-items:center}
+.tab{font-size:12px;padding:7px 14px;border-radius:8px;border:1px solid #244b70;background:#08233e;color:#aac5df}
+.tab.active{border-color:#10dafa;background:#035ec2;color:#fff;box-shadow:0 0 13px #009cff88}
+.controls-main{display:grid;grid-template-columns:1fr .65fr;gap:10px;align-items:center}
+.keys{display:grid;gap:7px;margin:4px 0}
+.keyrow{display:flex;gap:11px;align-items:center;font-size:13px}
+kbd{background:linear-gradient(#263c55,#10243b);border:1px solid #7a9abd;box-shadow:0 2px 0 #051222;min-width:28px;text-align:center;border-radius:4px;padding:4px 5px;font:700 12px system-ui}
+.gamepad-diagram{position:relative;display:grid;place-items:center;min-height:142px;color:#b2dfff;text-align:center}
+.gamepad-diagram .controller{font-size:90px;line-height:1;filter:drop-shadow(0 12px 10px #000c)}
+.gamepad-diagram small{font-size:11px;color:#b5d6ee}
+.progress-card{display:flex;align-items:center;gap:13px;background:#071e39;border:1px solid #15486f;border-radius:10px;padding:12px;margin-bottom:10px}
+.memcard{width:65px;height:70px;background:linear-gradient(140deg,#62758b,#283b54);clip-path:polygon(0 0,82% 0,100% 17%,100% 100%,0 100%);border:2px solid #8795a9;display:grid;place-items:center;flex-shrink:0;font-size:9px;letter-spacing:.01em;font-weight:900;color:#d9ecff;text-align:center}
+.progress-card strong{font-size:14px}.progress-card small{display:block;color:#b2cae2;font-size:12px;margin-top:4px}
+.progress-stat{padding:10px;border-top:1px solid #194569;font-size:13px;display:flex;justify-content:space-between;gap:10px;color:#c3dff8}
+.progress-stat span:first-child{display:flex;gap:7px}
+.progress-stat b{color:#fff}
+.runtime-badge{display:inline-flex;align-items:center;gap:8px;color:#6cebd5;font-size:12px;font-weight:800}
+.pulse{width:8px;height:8px;border-radius:50%;background:#19edbd;box-shadow:0 0 9px #1debce}
+.launch-help{margin-top:14px;text-align:center;color:#9dbdda;font-size:12px}
+.game-overlay[hidden],.modal[hidden],.hide[hidden]{display:none!important}
+/* Preserve nonzero canvas dimensions when the game is running in the background. */
+.game-overlay[hidden]{display:grid!important;visibility:hidden!important;pointer-events:none!important;z-index:-1!important}
+.game-overlay{position:fixed;z-index:60;inset:0;background:#010913eb;backdrop-filter:blur(17px);display:grid;grid-template-rows:auto minmax(0,1fr);padding:12px}
+.gamebar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:4px 7px 13px}
+.gamebar-title{display:flex;align-items:center;gap:10px;min-width:0}
+.gamebar-title img{height:40px;max-width:180px;object-fit:contain}
+.gamebar-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gamebar-controls button,.modal-actions button{border:1px solid #1caaf9;background:#05325b;border-radius:9px;color:white;padding:10px 12px;font-size:13px;font-weight:750}
+.gamebar-controls button:hover,.modal-actions button:hover{background:#0572d4}
+.game-shell{min-height:0;display:flex;gap:12px;width:100%;justify-content:center;align-items:stretch}
+.game-display{min-width:0;min-height:0;flex:1;display:flex;align-items:center;justify-content:center;background:#000;border:1px solid #168bdd;border-radius:13px;overflow:hidden;position:relative}
+canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:pixelated;width:min(100%,calc((100vh - 116px)*4/3));max-height:calc(100vh - 116px);aspect-ratio:4/3;outline:0;touch-action:none}
+.game-status{align-self:stretch;width:275px;display:flex;flex-direction:column;gap:12px;border:1px solid #1266a4;background:#062344d9;padding:14px;border-radius:13px;font-size:13px;color:#bcd4e6}
+.game-status strong{color:white}
+.game-status .meta{word-break:break-word}
+.game-status button{padding:11px;color:white;background:#0861b7;border:1px solid #21b5ef;border-radius:9px;font-weight:850}
+#status{display:block;color:#d0edff}
+#fileStatus,#perfState{font-size:12px;color:#9ad9e8}
+#log{white-space:pre-wrap;word-break:break-word;overflow:auto;max-height:150px;font-size:10px;background:#010f21;border:1px solid #144b77;padding:9px;border-radius:8px}
+.touchbar{display:none;gap:10px;justify-content:space-between;align-items:center;padding:7px}
+.touchbar button{min-width:43px;min-height:42px;border-radius:12px;background:#0a5892bb;border:1px solid #26c6fa;color:white;font-weight:900;touch-action:none}
+.modal{position:fixed;z-index:95;inset:0;background:#000b;display:grid;place-items:center;padding:16px}
+.modal-box{position:relative;max-width:570px;width:100%;max-height:min(80vh,640px);overflow:auto;padding:24px;background:linear-gradient(145deg,#083d64,#03162e);border:1px solid #0ff;border-radius:17px;box-shadow:0 15px 70px #000}
+.modal-box h2{margin:0 0 9px}.modal-box p{color:#c6dcee;line-height:1.5}
+.modal-close{position:absolute;right:14px;top:14px}
+.modal-actions{display:flex;gap:8px;flex-wrap:wrap}
+.muted{color:#a9c8e0;font-size:13px}
+.footer{padding:20px;text-align:center;border-top:1px solid #0e4068;font-size:12px;color:#8caeca}
+@media(max-width:1250px){.feature-stack{width:235px}.hero-copy{max-width:550px}.dashboard{grid-template-columns:1.2fr 1fr}.progress-panel{grid-column:1/-1}.progress-panel .progress-list{display:grid;grid-template-columns:repeat(3,1fr)}.progress-list .progress-stat{border-top:0;border-left:1px solid #194569}.hero{min-height:380px}.hero-content{min-height:380px}.fish-art{right:13%;width:55vw}}
+@media(max-width:820px){.topnav{display:none}.top-inner{justify-content:space-between}.hero-content{min-height:505px;align-items:flex-start;flex-direction:column;justify-content:end;padding-top:150px}.hero-copy{max-width:100%}.fish-art{width:93%;height:390px;right:-19%;top:-100px;opacity:.63}.big-logo{max-width:490px;max-height:130px}.hero-copy .tagline{font-size:17px;margin:6px 0 14px}.feature-stack{display:flex;flex-wrap:wrap;width:100%;gap:7px}.feature{flex:1;min-width:145px;min-height:54px;padding:8px}.feature small{display:none}.feature strong{font-size:12px}.feature .big-icon{font-size:20px}.mode-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard{grid-template-columns:1fr}.progress-panel{grid-column:auto}.gallery-main{height:260px}.game-shell{flex-direction:column}.game-status{width:100%;max-height:120px;overflow:auto}.game-display{flex:1}canvas#canvas{max-height:58vh;width:100%}.touchbar{display:flex}}
+@media(max-width:520px){.identity{font-size:19px}.top-inner{gap:8px}.top-actions .iconbtn:first-child{display:none}.hero-content{padding-top:190px;min-height:540px}.fish-art{width:120%;right:-40%;top:-115px}.hero-copy .tagline{font-size:15px}.cta,.outline{padding:11px 12px;font-size:13px;min-height:43px}.big-logo{max-height:125px}.feature-stack{display:grid;grid-template-columns:repeat(2,1fr)}.feature{min-width:0}.mode-grid{gap:8px}.mode{min-height:115px}.mode-info{left:9px;bottom:10px;gap:5px}.mode-icon{font-size:20px}.mode strong{font-size:13px}.mode small{font-size:10px}.mode .arrow{display:none}.panel{padding:11px}.gallery-main{height:205px}.gallery-layout{grid-template-columns:minmax(0,1fr) 65px}.progress-panel .progress-list{display:block}.progress-list .progress-stat{border-left:0;border-top:1px solid #194569}.game-overlay{padding:4px}.gamebar-title img{width:110px}.gamebar-controls button{padding:8px;font-size:11px}.game-status{max-height:88px;padding:6px}.gamebar-title .runtime-badge{display:none}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 </style>
 </head>
 <body>
-<header><span class="brand">HOSTSTORM · FISH WEB RECOMP</span><span class="chip">ALPHA • INÍCIO AUTOMÁTICO</span></header>
-<main>
-  <h1>Fisherman's Bait 2</h1>
-  <p class="lead">Port experimental do código de PlayStation 1 para WebAssembly. O jogo inicia automaticamente, sem selecionar arquivos. Não utiliza EmulatorJS.</p>
-  <div class="layout">
-    <section class="player">
-      <canvas id="canvas" width="640" height="480" tabindex="0" aria-label="Tela do jogo"></canvas>
-      <div class="bar"><span id="status">Carregando o runtime WebAssembly…</span><span id="fileStatus"></span><span id="perfState"></span></div>
+<header class="topbar">
+  <div class="shell top-inner">
+    <a href="#inicio" class="identity" aria-label="HostStorm início"><span class="bolt">ϟ</span>HostStorm</a>
+    <nav class="topnav" aria-label="Navegação">
+      <a href="#inicio" class="navlink selected">◆ &nbsp; Início</a>
+      <a href="#modos" class="navlink">🎮 &nbsp; Jogos</a>
+      <a href="#capturas" class="navlink">▦ &nbsp; Capturas</a>
+      <a href="#controles" class="navlink">♟ &nbsp; Controles</a>
+      <a href="#sobre" class="navlink">ⓘ &nbsp; Sobre</a>
+    </nav>
+    <div class="top-actions">
+      <button type="button" class="iconbtn" id="searchBtn" title="Abrir modos do jogo" aria-label="Procurar modos">⌕</button>
+      <button type="button" class="iconbtn" id="settingsBtn" title="Configurações" aria-label="Configurações">⚙</button>
+    </div>
+  </div>
+</header>
+
+<section class="hero" id="inicio" aria-label="Fisherman's Bait 2 Big Ol' Bass">
+  <div class="fish-art" role="presentation"></div>
+  <div class="shell hero-content">
+    <div class="hero-copy">
+      <img class="big-logo" src="assets/logo.png" alt="Fisherman's Bait 2: Big Ol' Bass" fetchpriority="high">
+      <p class="tagline">Clássico de pesca do PS1<br>recompilado para o navegador.</p>
+      <div class="hero-actions">
+        <button type="button" class="cta" id="playButton"><span>▶</span><span>Jogar Agora</span></button>
+        <button type="button" class="outline" id="heroFullscreen">⛶ &nbsp; Tela Cheia</button>
+        <button type="button" class="outline" id="heroControls">🎮 &nbsp; Controles</button>
+      </div>
+    </div>
+    <div class="feature-stack" aria-label="Características do port">
+      <div class="feature"><span class="big-icon" style="color:#21f47d">▣</span><div><strong>PS1 Recompilado</strong><small>Código nativo adaptado ao browser</small></div></div>
+      <div class="feature"><span class="big-icon">◎</span><div><strong>WebAssembly</strong><small>Port experimental, sem EmulatorJS</small></div></div>
+      <div class="feature"><span class="big-icon" style="color:#40fc8b">ϟ</span><div><strong>Início automático</strong><small>Arquivos carregados sem seleção manual</small></div></div>
+      <div class="feature"><span class="big-icon">◖))</span><div><strong>Áudio adaptativo</strong><small>Modo opcional em teste</small></div></div>
+    </div>
+  </div>
+</section>
+
+<main class="shell">
+  <section id="modos" class="mode-grid" aria-label="Modos de jogo">
+    <button class="mode" type="button" data-launch-mode="Tournament"><span class="mode-info"><span class="mode-icon">🏆</span><span><strong>Tournament</strong><small>Dispute o maior peixe!</small></span><span class="arrow">›</span></span></button>
+    <button class="mode" type="button" data-launch-mode="Free Fishing"><span class="mode-info"><span class="mode-icon">🐟</span><span><strong>Free Fishing</strong><small>Pesque livremente no seu ritmo.</small></span><span class="arrow">›</span></span></button>
+    <button class="mode" type="button" data-launch-mode="VS Play"><span class="mode-info"><span class="mode-icon">🎣</span><span><strong>VS Play</strong><small>Modo para dois jogadores.</small></span><span class="arrow">›</span></span></button>
+    <button class="mode" type="button" data-launch-mode="World Monsters"><span class="mode-info"><span class="mode-icon">👑</span><span><strong>World Monsters</strong><small>Enfrente os peixes lendários!</small></span><span class="arrow">›</span></span></button>
+  </section>
+
+  <div class="dashboard">
+    <section class="panel" id="capturas">
+      <div class="panel-head"><h2 class="panel-title"><span class="symbol">▣</span> Capturas de Tela</h2><button class="textbtn" id="viewGallery">Ver mais ↗</button></div>
+      <div class="gallery-layout">
+        <div class="gallery-main"><img id="galleryMain" src="assets/gameplay.png" alt="Gameplay original do Big Ol' Bass"></div>
+        <div class="gallery-thumbs">
+          <button class="thumb active" data-gallery="assets/gameplay.png" data-caption="Gameplay original do PS1" aria-label="Gameplay"><img src="assets/gameplay.png" alt=""></button>
+          <button class="thumb" data-gallery="assets/screen-mode.png" data-caption="Menu Mode Select recompilado" aria-label="Menu recompilado"><img src="assets/screen-mode.png" alt=""></button>
+          <button class="thumb" data-gallery="assets/cover.jpg" data-caption="Arte clássica de Big Ol' Bass" aria-label="Arte do jogo"><img src="assets/cover.jpg" alt=""></button>
+        </div>
+      </div>
+      <p class="muted" id="galleryCaption" style="margin:8px 0 0">Gameplay original do PS1</p>
     </section>
-    <aside class="side">
-      <h2>Pronto para jogar</h2>
-      <p class="note">O jogo será carregado automaticamente do servidor local. Não é necessário selecionar o disco ou apertar Iniciar no site.</p>
-      <button id="enableAudio">Ativar som e focar controles</button>
-      <button class="secondary" id="adaptiveAudio">Som adaptativo: desativado</button>
-      <button class="secondary" id="reload">Reiniciar jogo</button>
-      <button class="secondary" id="fullscreen">Tela cheia</button>
-      <p class="note">Clique no botão "Ativar som e focar controles" depois de carregar. Teclado: setas para mover; Enter = START; X = botão X do PS1; S = círculo; Z = quadrado; A = triângulo. Controle USB/Bluetooth pela Gamepad API. Se não houver som, clique na tela do jogo para ativar o áudio. Versão experimental: Start, GAME e MODE SELECT funcionando; áudio ainda em otimização; o som adaptativo reduz cortes quando a emulação está lenta, mas pode alterar a altura da voz e da música. O carregamento pode levar um minuto ou mais, conforme sua conexão e dispositivo.</p>
+
+    <section class="panel" id="controles">
+      <div class="panel-head"><h2 class="panel-title"><span class="symbol">🎮</span> Controles</h2><div class="controls-row"><button class="tab active" data-control-tab="keyboard">Teclado</button><button class="tab" data-control-tab="gamepad">Controle</button></div></div>
+      <div class="controls-main">
+        <div class="keys" id="keyboardKeys">
+          <div class="keyrow"><kbd>↑↓←→</kbd> Mover / selecionar</div>
+          <div class="keyrow"><kbd>Enter</kbd> START</div>
+          <div class="keyrow"><kbd>X</kbd> Confirmar (✕)</div>
+          <div class="keyrow"><kbd>S</kbd> Voltar (◯)</div>
+          <div class="keyrow"><kbd>Z</kbd> Quadrado</div>
+          <div class="keyrow"><kbd>A</kbd> Triângulo</div>
+          <div class="keyrow"><kbd>Q / W</kbd> L1 / R1</div>
+        </div>
+        <div class="keys" id="gamepadKeys" hidden>
+          <div class="keyrow"><kbd>⊕</kbd> Direcional / analógico</div>
+          <div class="keyrow"><kbd>☰</kbd> START</div>
+          <div class="keyrow"><kbd>A / ✕</kbd> Confirmar</div>
+          <div class="keyrow"><kbd>B / ◯</kbd> Voltar</div>
+          <div class="keyrow"><kbd>LB / RB</kbd> L1 / R1</div>
+          <p class="muted">Pressione qualquer botão para ativar o Gamepad API.</p>
+        </div>
+        <div class="gamepad-diagram"><span class="controller">🎮</span><small id="gamepadStatus">Teclado + controle USB/Bluetooth</small></div>
+      </div>
+    </section>
+
+    <section class="panel progress-panel" id="sobre">
+      <div class="panel-head"><h2 class="panel-title"><span class="symbol">▣</span> Progresso</h2><span class="runtime-badge"><span class="pulse"></span> WEB RECOMP</span></div>
+      <div class="progress-card"><div class="memcard">MEMORY<br>CARD<br>PS1</div><div><strong>Memory Card</strong><small id="saveStatus">Verificando salvamentos…</small></div></div>
+      <div class="progress-list">
+        <div class="progress-stat"><span>🐟 &nbsp; Plataforma</span><b>PS1</b></div>
+        <div class="progress-stat"><span>⚡ &nbsp; Compilação</span><b>WASM</b></div>
+        <div class="progress-stat"><span>💿 &nbsp; Região</span><b>NTSC-U</b></div>
+      </div>
+      <p class="muted" id="launchHint">Selecione o modo dentro do próprio jogo.</p>
+    </section>
+  </div>
+  <p class="launch-help">Fisherman's Bait 2: Big Ol' Bass · Konami 1999 · Port experimental HostStorm · Jogue com teclado ou gamepad</p>
+</main>
+
+<footer class="footer">HostStorm · Projeto independente de preservação técnica. Marcas, personagens e recursos do jogo pertencem aos respectivos titulares.</footer>
+
+<div class="game-overlay" id="gameOverlay" hidden role="dialog" aria-modal="true" aria-label="Jogo Big Ol' Bass">
+  <div class="gamebar">
+    <div class="gamebar-title"><img src="assets/logo.png" alt="Big Ol' Bass"><span class="runtime-badge"><span class="pulse"></span> WebAssembly</span></div>
+    <div class="gamebar-controls">
+      <button id="enableAudio" type="button">🔊 Ativar som</button>
+      <button id="adaptiveAudio" type="button">Som adaptativo: desativado</button>
+      <button id="reload" type="button">↻ Reiniciar</button>
+      <button id="fullscreen" type="button">⛶ Tela cheia</button>
+      <button id="closeGame" type="button">✕ Sair do jogo</button>
+    </div>
+  </div>
+  <div class="game-shell">
+    <div class="game-display">
+      <canvas id="canvas" width="640" height="480" tabindex="0" aria-label="Tela do PlayStation recompilado"></canvas>
+    </div>
+    <aside class="game-status">
+      <strong>STATUS DO SISTEMA</strong>
+      <span id="status" role="status">Carregando o runtime WebAssembly…</span>
+      <span id="fileStatus" class="meta">Preparando jogo…</span>
+      <span id="perfState" class="meta"></span>
+      <button id="showControls" type="button">🎮 Ver controles</button>
+      <div class="touchbar" aria-label="Controles de toque">
+        <button data-touch="ArrowLeft">◀</button><button data-touch="ArrowUp">▲</button><button data-touch="ArrowDown">▼</button><button data-touch="ArrowRight">▶</button>
+        <button data-touch="Enter">START</button><button data-touch="KeyX">✕</button><button data-touch="KeyS">◯</button>
+      </div>
+      <details><summary>Diagnóstico</summary><pre id="log" aria-label="Log de diagnóstico"></pre></details>
     </aside>
   </div>
-  <pre id="log" aria-label="Log de diagnóstico"></pre>
-</main>
+</div>
+
+<div class="modal" id="optionsModal" hidden role="dialog" aria-modal="true" aria-label="Opções do launcher">
+  <div class="modal-box">
+    <button class="iconbtn modal-close" id="closeOptions" aria-label="Fechar configurações">✕</button>
+    <h2>⚙ Configurações do jogo</h2>
+    <p>O jogo é recompilado para WebAssembly. Arquivos do seu navegador são carregados automaticamente no runtime, sem pedir seleção manual.</p>
+    <div class="modal-actions"><button id="modalPlay">▶ Jogar</button><button id="modalControls">🎮 Ver controles</button></div>
+    <p class="muted" id="modalNote">Som adaptativo é experimental e fica desativado por padrão. O launcher não inventa estatísticas nem salvamentos.</p>
+  </div>
+</div>
 <script>
 'use strict';
 (function () {
@@ -70,10 +292,79 @@ pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:aut
     print: function() {log(Array.from(arguments).join(' '));},
     printErr: function() {log(Array.from(arguments).join(' '));},
     setStatus: setStatus,
-    onRuntimeInitialized: function() { runtimeReady = true; setStatus('Runtime pronto. Carregando o disco automaticamente…'); setTimeout(autostart, 0); },
+    onRuntimeInitialized: function() { runtimeReady = true; setStatus('Runtime pronto. Carregando o disco automaticamente…'); if (!overlay.hidden) setTimeout(autostart, 0); },
     onAbort: function(reason) {setStatus('Runtime interrompido. Consulte o log.'); log('ABORT: ' + reason);}
   };
   reloadButton.addEventListener('click', function() { window.location.reload(); });
+  var overlay = document.getElementById('gameOverlay');
+  var focusBefore = null;
+  function showGame() {
+    if (overlay.hidden) focusBefore=document.activeElement;
+    overlay.hidden=false;
+    document.body.style.overflow='hidden';
+    canvas.focus({preventScroll:true});
+    if (started) void enableSound();
+    else {setStatus('Preparando jogo no navegador…'); if (runtimeReady) void autostart();}
+  }
+  function hideGame() {
+    overlay.hidden=true;
+    document.body.style.overflow='';
+    pressedKeys.clear();
+    if (focusBefore && focusBefore.focus) focusBefore.focus();
+  }
+  document.getElementById('playButton').addEventListener('click', showGame);
+  document.getElementById('modalPlay').addEventListener('click',function(){
+    document.getElementById('optionsModal').hidden=true;showGame();
+  });
+  document.querySelectorAll('[data-launch-mode]').forEach(function(node){
+    node.addEventListener('click',function(){
+      document.getElementById('launchHint').textContent='Modo '+node.dataset.launchMode+': escolha essa opção dentro do menu do jogo.';
+      showGame();
+    });
+  });
+  document.getElementById('closeGame').addEventListener('click',hideGame);
+  document.getElementById('heroFullscreen').addEventListener('click',function(){
+    showGame(); var target=document.querySelector('.game-display');
+    if (!document.fullscreenElement && target.requestFullscreen) target.requestFullscreen().catch(function(e){log(e.message)});
+  });
+  var optionsModal=document.getElementById('optionsModal');
+  document.getElementById('settingsBtn').addEventListener('click',function(){optionsModal.hidden=false;});
+  document.getElementById('closeOptions').addEventListener('click',function(){optionsModal.hidden=true;});
+  optionsModal.addEventListener('click',function(e){if(e.target===optionsModal)optionsModal.hidden=true;});
+  document.addEventListener('keydown',function(e){
+    if (e.key==='Escape') {
+      if (!optionsModal.hidden) optionsModal.hidden=true;
+      else if (!overlay.hidden && !document.fullscreenElement) hideGame();
+    }
+  });
+  document.getElementById('heroControls').addEventListener('click',function(){document.getElementById('controles').scrollIntoView({behavior:'smooth'});});
+  document.getElementById('modalControls').addEventListener('click',function(){
+    optionsModal.hidden=true;document.getElementById('controles').scrollIntoView({behavior:'smooth'});
+  });
+  document.getElementById('showControls').addEventListener('click',function(){hideGame();document.getElementById('controles').scrollIntoView({behavior:'smooth'});});
+  document.getElementById('searchBtn').addEventListener('click',function(){document.getElementById('modos').scrollIntoView({behavior:'smooth'});});
+  document.querySelectorAll('[data-control-tab]').forEach(function(tab){
+    tab.addEventListener('click',function(){
+      var gp=tab.dataset.controlTab==='gamepad';
+      document.getElementById('keyboardKeys').hidden=gp;
+      document.getElementById('gamepadKeys').hidden=!gp;
+      document.querySelectorAll('[data-control-tab]').forEach(function(other){
+        other.classList.toggle('active',other===tab);
+      });
+    });
+  });
+  document.querySelectorAll('[data-gallery]').forEach(function(button){
+    button.addEventListener('click',function(){
+      document.getElementById('galleryMain').src=button.dataset.gallery;
+      document.getElementById('galleryCaption').textContent=button.dataset.caption;
+      document.querySelectorAll('[data-gallery]').forEach(function(other){other.classList.toggle('active',other===button)});
+    });
+  });
+  document.getElementById('viewGallery').addEventListener('click',function(){
+    var tabs=Array.from(document.querySelectorAll('[data-gallery]'));
+    tabs[(tabs.findIndex(function(t){return t.classList.contains('active')})+1)%tabs.length].click();
+  });
+
   var audioButton = document.getElementById('enableAudio');
   async function enableSound() {
     canvas.focus({preventScroll:true});
@@ -147,6 +438,14 @@ pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:aut
   },true);
   window.addEventListener('keyup',function(event) { pressedKeys.delete(event.code); },true);
   window.addEventListener('blur',function() { pressedKeys.clear(); });
+  document.querySelectorAll('[data-touch]').forEach(function(key){
+    var code=key.dataset.touch;
+    function down(event){event.preventDefault();pressedKeys.add(code);canvas.focus({preventScroll:true});}
+    function up(event){event.preventDefault();pressedKeys.delete(code);}
+    key.addEventListener('pointerdown',down);
+    ['pointerup','pointercancel','lostpointercapture','pointerleave'].forEach(function(t){key.addEventListener(t,up);});
+  });
+
   var gamepadBitIndex = {0:14,1:13,2:15,3:12,4:10,5:11,6:8,7:9,8:0,9:3,12:4,13:6,14:7,15:5};
   function publishPad() {
     if (started && typeof Module._psx_web_set_pad_buttons === 'function') {
@@ -176,7 +475,7 @@ pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:aut
   requestAnimationFrame(publishPad);
   document.getElementById('fullscreen').addEventListener('click', function() {
     if (document.fullscreenElement) { document.exitFullscreen(); }
-    else { canvas.requestFullscreen().catch(function(err){log(err);}); }
+    else { document.querySelector('.game-display').requestFullscreen().catch(function(err){log(err);}); }
   });
   function sector(bytes, lba) {
     var base = lba * 2352;
@@ -293,7 +592,8 @@ pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:aut
       fs.writeFile('/openbios.bin', new Uint8Array(await biosResponse.arrayBuffer()));
       started = true;
       fileNode.textContent = 'Jogo carregado';
-      canvas.focus();
+      document.getElementById('saveStatus').textContent='Salvamento local ainda não verificado';
+      if (!overlay.hidden) canvas.focus();
       setStatus('Iniciando PS1 recompilado…');
       Module.callMain(['--game','/game.toml','--bios','/openbios.bin','--disc','/game/disc/'+cueName,'--renderer','software','--no-launcher']);
       setStatus('Jogo iniciado — aguarde a tela PRESS START BUTTON.');

@@ -96,3 +96,15 @@ The `Som adaptativo` button is **OFF by default**. When enabled, the web launche
 A controlled Chromium run of approximately 72 seconds on AEROCOOL measured 627 audio underruns at 32.34 vblanks/sec without adaptation, versus 197 underruns at 33.42 vblanks/sec with the option active and a playback rate around 0.534. The Start and Cross menu transitions were preserved. This is a substantial reduction, not a guarantee of acceptable sound on all clients.
 
 The isolated runtime changes are stored in two portable source patches: `patches/fish-web-input.patch` and `patches/fish-web-audio-adaptive.patch`. Apply both only to a private compatible checkout of RetroPortingToolKit/psxrecomp, build using Emscripten 4.0.23 with `-DPSX_LAUNCHER=OFF`, and package with `scripts/package-web.sh`. Never apply game-specific patches to other PS1 web projects without review.
+
+## HostStorm visual launcher (2026-10-16)
+
+The site now uses the dedicated full-page HTML/CSS/JavaScript launcher `web/index.html`. It has the transparent original game logo, cinematic aquatic hero artwork, Tournament/Free Fishing/VS Play/World Monsters cards, real screenshot carousel, keyboard/Gamepad guide, truthful console/runtime status, configuration panel, and responsive mobile/touch presentation. The game renderer is unchanged and still uses the existing PSXRecomp WebAssembly runtime.
+
+**Player lifecycle:** opening the homepage displays the lightweight launcher without downloading the 119 MB disc. Clicking **Jogar Agora**, a game-mode card, or fullscreen opens a working 4:3 canvas, automatically stages the privately owned local CUE/BIN (no user file picker), then starts WebAssembly. Menu navigation using Enter/Start and X/Cross was validated in Playwright Chromium against real runtime frames. The mode cards do not fake an unsupported direct-mode selection: the player must select the actual mode inside the game. On closing the player, its hidden canvas retains dimensions so Emscripten does not throw zero-width Canvas2D errors.
+
+**UI integrity:** Image/gallery tabs, settings, fullscreen, sound unlock, optional adaptive audio, restart, mobile touch buttons and desktop keyboard/gamepad are wired. The memory-card widget deliberately does not display invented save/achievement counts; persistent memory-card support is not yet proven.
+
+The site assets live in `web/assets` and are copied by `scripts/package-web.sh` to `dist-web/assets`. Original art is sourced from PSX Data Center and LaunchBox image databases; those images remain subject to the game publisher's rights. They are not a blanket redistribution license. The existing local BIN/CUE HTTP serving routes also expose copyrighted game data; restrict deployment to permitted audiences unless distribution is authorized.
+
+Regression smoke tests: `tests/launcher-smoke.cjs` and `tests/launcher-game-boot.cjs` (Playwright Chromium).

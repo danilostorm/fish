@@ -1,0 +1,11 @@
+{
+  "name": "Fisherman's Bait 2: Big Ol' Bass",
+  "system": "ps1",
+  "type": "static-recompilation",
+  "toolchain": "psxrecomp",
+  "status": "exploring",
+  "original": {
+    "region": "USA",
+    "serial": "SLUS-00999"
+  }
+}

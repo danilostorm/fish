@@ -108,3 +108,7 @@ The site now uses the dedicated full-page HTML/CSS/JavaScript launcher `web/inde
 The site assets live in `web/assets` and are copied by `scripts/package-web.sh` to `dist-web/assets`. Original art is sourced from PSX Data Center and LaunchBox image databases; those images remain subject to the game publisher's rights. They are not a blanket redistribution license. The existing local BIN/CUE HTTP serving routes also expose copyrighted game data; restrict deployment to permitted audiences unless distribution is authorized.
 
 Regression smoke tests: `tests/launcher-smoke.cjs` and `tests/launcher-game-boot.cjs` (Playwright Chromium).
+
+## Tradução PT-BR nativa (ROM Hacking)
+
+Uma primeira versão PT-BR real altera o executável PS1 e as texturas TIM dentro de FISHING.DAT, regenerando EDC/ECC. Foram verificadas 21 strings e os cabeçalhos/opções de MODE SELECT no Chromium, sem overlays. A tradução ainda é parcial. Consulte [instruções para gerar o BIN/CUE traduzido com seu disco](docs/PTBR_NATIVE_PATCH.md).

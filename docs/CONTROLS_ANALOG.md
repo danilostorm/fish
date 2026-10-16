@@ -8,11 +8,11 @@ O antigo adaptador Web enviava somente um campo de 16 botões PS1 e dobrava o an
 
 O novo arquivo `web/fish-controls.js` lê e mapeia os eixos físicos, com configuração de pares de eixos, controles múltiplos, zona morta, inversão vertical, remapeamento dos botões e opção de manivela simulada por R3. Os valores são convertidos para **quatro bytes LX, LY, RX, RY** (128 = centro), empacotados atomicamente e passados ao WebAssembly por `psx_web_set_pad_axes`. O teclado pode simular giro contínuo do analógico direito enquanto C está pressionada.
 
-O patch `patches/fish-web-analog.patch` configura o primeiro controle como **DualShock analógico (ID 0x73)** por padrão e faz a CPU recompilada enviar eixos e botões ao circuito SIO em cada amostragem. É possível escolher Digital ou Híbrido no menu. Ao conectar no navegador, pressione algum botão para ativar a API Gamepad.
+O patch `patches/fish-web-analog.patch` permite controlar o modo PS1 digital (0x41) e DualShock analógico (0x73) por entrada do navegador, enviando eixos e botões ao circuito SIO a cada amostragem. Como a abertura do jogo não reconhece START em 0x73, o **modo padrão agora é Automático**: digital para teclado, START e menus, analógico quando o stick físico gira ou a tecla C simula a manivela. É possível escolher Digital ou Híbrido no menu. Ao conectar no navegador, pressione algum botão para ativar a API Gamepad.
 
 ## Configuração recomendada para pescar
 
-- Modo: **DualShock analógico**
+- Modo: **Automático (teclado + DualShock)**; usa digital no menu e analógico durante a manivela
 - Analógico esquerdo: eixos 0/1 para movimentar a vara
 - Analógico direito: eixos 2/3, girar continuamente para recolher a linha
 - L1 / R1: configurar ou aliviar tensão conforme comandos do jogo
@@ -37,3 +37,9 @@ bash scripts/package-web.sh
 O patch se aplica ao runtime **já contendo** os patches anteriores. No ambiente AEROCOOL, ele já está aplicado. Não reaplicá-lo na cópia de trabalho. Arquivos BIN/CUE e BIOS continuam fora do GitHub. Preserve o antigo WASM para rollback.
 
 **Limitação:** o teste sintético comprova transporte do analógico até a interface de hardware PS1 e modo DualShock, mas não garante que toda fase de gameplay utilize esses comandos de forma esperada. Calibração em controle físico deve ser feita na página de pesca.
+
+## Correção de regressão (16/10)
+
+A primeira versão exibia `\n` literalmente no HTML porque uma edição inseriu separadores escapados entre elementos. Esses três marcadores foram substituídos por quebras de linha reais.
+
+Foi comprovado em Chromium que START chega como bit ativo-baixo `0xFFF7` ao circuito PS1, mas a tela inicial não avançava com ID 0x73; ao mudar para ID 0x41, a tela avançou. O modo Automático inicia em digital e ativa o DualShock analógico ao movimentar o joystick direito ou segurar C. Além disso, o runtime deixou o navegador ser a fonte autoritativa de botões: mesclar com um estado SDL antigo mantinha teclas pressionadas após keyup.

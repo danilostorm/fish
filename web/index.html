@@ -272,7 +272,8 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     <div class="gamebar-title"><img src="assets/logo.png" alt="Big Ol' Bass"><span class="runtime-badge"><span class="pulse"></span> WebAssembly</span></div>
     <div class="gamebar-controls">
       <button id="enableAudio" type="button">🔊 Ativar som</button>
-      <button type="button" data-open-pad-settings>🎮 Configurar controle</button>\n      <button id="reload" type="button">↻ Reiniciar</button>
+      <button type="button" data-open-pad-settings>🎮 Configurar controle</button>
+      <button id="reload" type="button">↻ Reiniciar</button>
       <button id="fullscreen" type="button">⛶ Tela cheia</button>
       <button id="closeGame" type="button">✕ Sair do jogo</button>
     </div>
@@ -285,7 +286,8 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
       <strong>STATUS DO SISTEMA</strong>
       <span id="status" role="status">Carregando o runtime WebAssembly…</span>
       <span id="fileStatus" class="meta">Preparando jogo…</span>
-      <span id="perfState" class="meta"></span>\n      <span class="meta">🎮 Analógico: configure no menu</span>
+      <span id="perfState" class="meta"></span>
+      <span id="padModeState" class="meta">🎮 Entrada: preparando…>🎮 Analógico: configure no menu</span>
       <button id="showControls" type="button">🎮 Ver controles</button>
       <div class="touchbar" aria-label="Controles de toque">
         <button data-touch="ArrowLeft">◀</button><button data-touch="ArrowUp">▲</button><button data-touch="ArrowDown">▼</button><button data-touch="ArrowRight">▶</button>
@@ -340,7 +342,8 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     <div class="padcfg-actions"><button type="button" id="padReset">Restaurar padrões</button><button type="button" id="padSave">Salvar e voltar ao jogo</button></div>
   </div>
 </div>
-<script src="audio-wsola.js"></script>\n<script src="fish-controls.js"></script>
+<script src="audio-wsola.js"></script>
+<script src="fish-controls.js"></script>
 <script>
 'use strict';
 (function () {

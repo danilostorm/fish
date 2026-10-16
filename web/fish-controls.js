@@ -10,11 +10,12 @@
 'use strict';
 const bits={select:0,start:3,up:4,right:5,down:6,left:7,l2:8,r2:9,l1:10,r1:11,triangle:12,circle:13,cross:14,square:15};
 const names=['A / ✕','B / ◯','X / □','Y / △','LB / L1','RB / R1','LT / L2','RT / R2','Back / Select','Start','L3','R3','↑','↓','←','→'];
-const defaults={mode:1,device:-1,deadzone:0.13,axisL:0,axisR:2,invertRY:false,invertLY:false,crank:-1,
+const defaults={mode:2,device:-1,deadzone:0.13,axisL:0,axisR:2,invertRY:false,invertLY:false,crank:-1,
   buttons:{cross:0,circle:1,square:2,triangle:3,l1:4,r1:5,l2:6,r2:7,select:8,start:9}};
 var config=JSON.parse(JSON.stringify(defaults));
 var applied={buttons:65535,axes:0x80808080,analog:1};
 var currentPad=null,gameStarted=false,uiInitialized=false,previewAt=0;
+var effectiveMode=0;  // PS1 boots as digital pad; analog engages on actual stick movement.
 function load(){
   try{
     const raw=localStorage.getItem('hoststorm-fish-controller-v2');
@@ -89,6 +90,14 @@ function sample(pad,pressed,keyboard){
    axes[2]=toByte(Math.cos(theta),0,false);
    axes[3]=toByte(Math.sin(theta),0,config.invertRY);
  }
+ // Keep keyboard arrows usable for games polling only the analog left stick.
+ // Digital buttons remain mapped simultaneously. Physical stick wins if moving.
+ if(config.mode!==0 && pressed && (pressed.has('ArrowLeft')||pressed.has('ArrowRight')||pressed.has('ArrowUp')||pressed.has('ArrowDown'))) {
+   if(!pad || (axes[0]===128 && axes[1]===128)) {
+     axes[0]=pressed.has('ArrowLeft')?0:pressed.has('ArrowRight')?255:128;
+     axes[1]=pressed.has('ArrowUp')?0:pressed.has('ArrowDown')?255:128;
+   }
+ }
  if(config.mode===0)axes.fill(128);
  let packed=((axes[0])|(axes[1]<<8)|(axes[2]<<16)|(axes[3]<<24))>>>0;
  return {word,packed,axes};
@@ -98,9 +107,27 @@ function publish(Module,started,pressed,keyboard){
  const pad=selectedGamepad(typeof navigator!=='undefined'&&navigator.getGamepads?navigator.getGamepads():[]);
  currentPad=pad;
  const data=sample(pad,pressed,keyboard);
- applied={buttons:data.word,axes:data.packed,raw:data.axes,analog:config.mode};
+ // The PS1 game does not respond to START at its title screen if the pad
+ // reports analog ID 0x73. Boot and menu inputs MUST see digital ID 0x41.
+ // Stick movement (including simulated reel via C/R3) switches to 0x73.
+ // Keep analog selected once active until a new menu/d-pad input. This avoids
+ // rapid type-changes through SIO while holding a joystick.
+ const analogLive=config.mode!==0 && (data.axes[0]!==128||data.axes[1]!==128||
+                                      data.axes[2]!==128||data.axes[3]!==128);
+ const menuPressed=!!(pressed && [...pressed].some(k=>
+   ['Enter','NumpadEnter','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyX','KeyS'].includes(k))) ||
+   !!(pad && ([9,12,13,14,15].some(i=>pad.buttons?.[i]?.pressed)));
+ const reelingLive=data.axes[2]!==128 || data.axes[3]!==128;
+ if(config.mode===0) effectiveMode=0;
+ else if(menuPressed && !reelingLive) effectiveMode=0;
+ else if(analogLive) effectiveMode=1;
+ // Even if mode=1 was saved previously, no gamepad and no stick movement
+ // remains digital until the keyboard simulates the analog stick (KeyC).
+ // No-pad gameplay can always re-enter the menus without a page reload.
+ else if(!pad) effectiveMode=0;
+ applied={buttons:data.word,axes:data.packed,raw:data.axes,analog:effectiveMode};
  if(Module && typeof Module._psx_web_set_pad_mode==='function')
-   Module._psx_web_set_pad_mode(config.mode);
+   Module._psx_web_set_pad_mode(effectiveMode);
  if(started && Module){
    if(typeof Module._psx_web_set_pad_buttons==='function')Module._psx_web_set_pad_buttons(data.word);
    if(typeof Module._psx_web_set_pad_axes==='function')Module._psx_web_set_pad_axes(data.packed,pad?1:0);
@@ -118,6 +145,7 @@ function updatePreview(Module){
  set('gamepadStatus',currentPad?'Conectado: '+currentPad.id:'Nenhum gamepad — conecte e pressione um botão');
  const mode=typeof Module?._psx_web_get_pad_analog==='function'?Module._psx_web_get_pad_analog():-1;
  set('padAnalogLive',mode===1?'DualShock analógico ativo (0x73)':mode===0?'Controle digital (0x41)':'Aguardando início do jogo');
+ set('padModeState',mode===1?'🎮 Entrada: DualShock analógico ativo':mode===0?'🎮 Entrada: digital (teclado/menus)':'🎮 Entrada: aguardando motor');
  const el=document.getElementById('padAxesLive');
  if(el && applied.raw)el.textContent='E: '+applied.raw.slice(0,2).join(' / ')+'  •  D: '+applied.raw.slice(2).join(' / ');
  const sticks=[['padDotLeft',applied.raw?.[0],applied.raw?.[1]],['padDotRight',applied.raw?.[2],applied.raw?.[3]]];
@@ -175,7 +203,7 @@ function initUI(open,close){
  });
  reflect();
 }
-function resetForTests(){config=JSON.parse(JSON.stringify(defaults));applied={buttons:65535,axes:0x80808080,analog:1};}
+function resetForTests(){config=JSON.parse(JSON.stringify(defaults));effectiveMode=0;applied={buttons:65535,axes:0x80808080,analog:0};}
 load();
 return {defaults,bits,names,config:()=>config,set:(opts)=>{config={...config,...opts,buttons:{...config.buttons,...(opts.buttons||{})}};save();},sample,publish,initUI,resetForTests,toByte};
 });

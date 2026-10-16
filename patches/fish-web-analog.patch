@@ -37,6 +37,16 @@
 +        if (s == 0) config_capable = g_fish_web_mode.load(std::memory_order_acquire) != 0;
 +#endif
 +        sio_set_pad_config_capable(s, config_capable);
+@@ -2429,3 +2459,3 @@
+-        /* Reliable browser-thread -> guest-thread pad bridge. Main-thread
+-         * DOM/Gamepad events are published atomically and merged active-low
+-         * here before SIO consumes the pad frame. */
++        /* The browser's DOM/Gamepad adapter is authoritative for player one.
++         * AND-ing with SDL's worker-thread key state left some keys latched
++         * forever after keyup, making START and directions stick in-game. */
+@@ -2433 +2463 @@
+-            btn &= (uint16_t)g_fish_web_pad.load(std::memory_order_acquire);
++            btn = (uint16_t)g_fish_web_pad.load(std::memory_order_acquire);
 @@ -2450,0 +2481,8 @@
 +#if defined(PSX_WEB)
 +        if (s == 0) {

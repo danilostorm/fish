@@ -1,6 +1,6 @@
 # Real PS1 -> Browser recompilation roadmap
 
-**Current state: main EXE recompiled, Emscripten WebAssembly built, browser loads OpenBIOS; game menu/gameplay not confirmed.**
+**Current state: main EXE recompiled, WebAssembly built. Chromium with OpenBIOS Fastboot renders the game's Konami splash, PRESS START title and Willow Lake attract sequence; interactive gameplay/menu not confirmed.**
 
 ## Measured baseline (2026-10-16)
 
@@ -19,7 +19,7 @@
 3. **Game correctness — PENDING.** Trace transition from OpenBIOS to the game, CD-ROM I/O, overlays and the first menu.
 4. **Emscripten integration — PARTIAL.** Built real WASM and launched BIOS. Game execution and overlay handling remain unconfirmed.
 5. **Browser services — PARTIAL.** Local CUE/BIN picker, ISO9660 extraction, WebAssembly renderer and COOP/COEP nginx included. Input, in-game sound, save persistence, streamed loading and touch are pending verification.
-6. **Real browser QA — PARTIAL.** 65-second Chromium runtime test completed with BIOS animation and black screen. Gameplay remains unverified.
+6. **Real browser QA — PARTIAL.** OpenBIOS Fastboot reaches Konami splash, PRESS START and Willow Lake attract sequence; gameplay remains unverified. Need debug button delivery/overlay transitions and confirm a controllable fishing scene.
 
 ## Constraints
 

@@ -131,6 +131,36 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
 #fishFastCanvas {position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(100%,calc((100vh - 116px)*4/3));max-height:calc(100vh - 116px);aspect-ratio:4/3;image-rendering:pixelated;z-index:2;object-fit:contain}
 @media(max-width:820px){#fishFastCanvas{max-height:58vh;width:100%}}
 </style>
+<style>
+.pad-config-entry{background:#075d9d;color:#effdff;border:1px solid #23bcff;border-radius:9px;padding:10px 12px;font-weight:800;text-align:left}
+.padcfg{max-width:790px;max-height:min(90vh,880px);border-color:#28bfff;padding:20px 22px;background:linear-gradient(135deg,#093961,#01152b)}
+.padcfg-head{display:flex;justify-content:space-between;gap:12px;align-items:start}
+.padcfg-head h2{margin:4px 0 6px;font-size:24px}.padcfg-head p{font-size:12px;margin:0 0 9px;color:#badcf2}
+.padcfg-kicker{font-size:10px;letter-spacing:2px;font-weight:900;color:#4ee2ff}
+#padClose{padding:8px 12px;border-radius:8px;border:1px solid #2384bb;background:#042a46;color:white}
+.padcfg-device{display:flex;gap:10px;align-items:center;border:1px solid #126599;border-radius:10px;background:#041a2e;padding:10px 12px;font-size:12px;color:#d3ecfc;margin:10px 0}
+.padcfg-light{width:9px;height:9px;border-radius:50%;background:#33eac3;box-shadow:0 0 10px #14d5b7;flex-shrink:0}
+.padcfg-fields,.padcfg-map{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.padcfg-fields label,.padcfg-map label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#c7e4f4;font-weight:750}
+.padcfg select,.padcfg input[type=range]{min-width:0;width:100%;padding:9px;border-radius:8px;border:1px solid #217baa;background:#051e39;color:white;font-size:12px}
+.padcfg input[type=range]{padding:4px}
+.padcfg .padcfg-check{flex-direction:row;align-items:center;gap:8px}
+.padcfg-check input{accent-color:#06cffa;width:17px;height:17px}
+.padcfg-preview{position:relative;display:flex;justify-content:center;gap:35px;align-items:center;margin:12px 0;padding:12px 10px 34px;border-radius:10px;background:#02182e;border:1px solid #166690}
+.pad-stick-view{text-align:center}.pad-stick-view strong{display:block;font-size:11px;margin-bottom:10px}
+.pad-stick-ring{width:74px;height:74px;border:2px solid #1aa5e9;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,#092c50,#031428);margin:auto;position:relative}
+.pad-stick-ring:after{content:"";position:absolute;width:1px;height:65px;background:#266381;transform:rotate(90deg)}
+.pad-stick-ring:before{content:"";position:absolute;width:1px;height:65px;background:#266381}
+.pad-stick-ring i{width:19px;height:19px;border-radius:50%;background:#43dffa;box-shadow:0 0 9px #18bdfd;position:relative;z-index:2}
+.padcfg-preview p{position:absolute;bottom:4px;left:12px;font-size:10px;color:#8ccfe4;margin:0}
+.padcfg-preview .padcfg-state{right:12px;left:auto;color:#52f4c2}
+.padcfg h3{margin:10px 0;font-size:14px}
+.padcfg-hint{color:#b6e0ee;font-size:11px;line-height:1.6;margin:14px 0}
+.padcfg-actions{display:flex;justify-content:space-between;gap:12px}
+.padcfg-actions button{padding:11px 15px;border-radius:9px;border:1px solid #20a6df;background:#054375;color:white;font-weight:800}
+#padSave{background:#27cce0!important;color:#001e30!important;border-color:#27cce0!important}
+@media(max-width:600px){.padcfg{padding:14px;max-height:94vh}.padcfg-fields,.padcfg-map{grid-template-columns:1fr}.padcfg-preview{gap:16px}.padcfg-preview .padcfg-state{position:static;align-self:end}.padcfg-preview{flex-wrap:wrap;padding-bottom:20px}.padcfg-preview p{position:static;width:100%}.padcfg-head h2{font-size:21px}}
+</style>
 </head>
 <body>
 <header class="topbar">
@@ -194,7 +224,7 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     </section>
 
     <section class="panel" id="controles">
-      <div class="panel-head"><h2 class="panel-title"><span class="symbol">🎮</span> Controles</h2><div class="controls-row"><button class="tab active" data-control-tab="keyboard">Teclado</button><button class="tab" data-control-tab="gamepad">Controle</button></div></div>
+      <div class="panel-head"><h2 class="panel-title"><span class="symbol">🎮</span> Controles</h2><div class="controls-row"><button type="button" class="pad-config-entry" data-open-pad-settings>⚙ Ajustar</button><button class="tab active" data-control-tab="keyboard">Teclado</button><button class="tab" data-control-tab="gamepad">Controle</button></div></div>
       <div class="controls-main">
         <div class="keys" id="keyboardKeys">
           <div class="keyrow"><kbd>↑↓←→</kbd> Mover / selecionar</div>
@@ -211,7 +241,11 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
           <div class="keyrow"><kbd>A / ✕</kbd> Confirmar</div>
           <div class="keyrow"><kbd>B / ◯</kbd> Voltar</div>
           <div class="keyrow"><kbd>LB / RB</kbd> L1 / R1</div>
-          <p class="muted">Pressione qualquer botão para ativar o Gamepad API.</p>
+          <div class="keyrow"><kbd>Direito ↻</kbd> Gire o analógico direito para recolher</div>
+          <div class="keyrow"><kbd>Esquerdo</kbd> Movimentar a vara</div>
+          <div class="keyrow"><kbd>C</kbd> Simular manivela no teclado</div>
+          <p class="muted">Ative o modo analógico e personalize o mapeamento para seu controle.</p>
+          <button type="button" class="pad-config-entry" data-open-pad-settings>⚙ Configurar controle</button>
         </div>
         <div class="gamepad-diagram"><span class="controller">🎮</span><small id="gamepadStatus">Teclado + controle USB/Bluetooth</small></div>
       </div>
@@ -238,7 +272,7 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     <div class="gamebar-title"><img src="assets/logo.png" alt="Big Ol' Bass"><span class="runtime-badge"><span class="pulse"></span> WebAssembly</span></div>
     <div class="gamebar-controls">
       <button id="enableAudio" type="button">🔊 Ativar som</button>
-      <button id="reload" type="button">↻ Reiniciar</button>
+      <button type="button" data-open-pad-settings>🎮 Configurar controle</button>\n      <button id="reload" type="button">↻ Reiniciar</button>
       <button id="fullscreen" type="button">⛶ Tela cheia</button>
       <button id="closeGame" type="button">✕ Sair do jogo</button>
     </div>
@@ -251,7 +285,7 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
       <strong>STATUS DO SISTEMA</strong>
       <span id="status" role="status">Carregando o runtime WebAssembly…</span>
       <span id="fileStatus" class="meta">Preparando jogo…</span>
-      <span id="perfState" class="meta"></span>
+      <span id="perfState" class="meta"></span>\n      <span class="meta">🎮 Analógico: configure no menu</span>
       <button id="showControls" type="button">🎮 Ver controles</button>
       <div class="touchbar" aria-label="Controles de toque">
         <button data-touch="ArrowLeft">◀</button><button data-touch="ArrowUp">▲</button><button data-touch="ArrowDown">▼</button><button data-touch="ArrowRight">▶</button>
@@ -271,7 +305,42 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     <p class="muted" id="modalNote">Áudio em velocidade e tom originais, sem efeito de câmera lenta. O launcher não inventa estatísticas nem salvamentos.</p>
   </div>
 </div>
-<script src="audio-wsola.js"></script>
+<div class="modal" id="padConfigModal" hidden role="dialog" aria-modal="true" aria-label="Configurar controles do PlayStation">
+  <div class="modal-box padcfg">
+    <div class="padcfg-head"><div><span class="padcfg-kicker">HOSTSTORM · CONTROLES</span><h2>Controle de pesca</h2><p>Configure o DualShock para lançar, fisgar e recolher a linha.</p></div>
+      <button id="padClose" type="button" aria-label="Fechar configurações">✕</button></div>
+    <div class="padcfg-device"><span class="padcfg-light"></span><span id="padStatusLive">Conecte um controle USB/Bluetooth e pressione um botão</span></div>
+    <div class="padcfg-fields">
+      <label>Controle detectado<select id="padDevice"><option value="-1">Automático</option></select></label>
+      <label>Modo do PlayStation<select id="padMode"><option value="1">DualShock analógico (recomendado)</option><option value="2">Híbrido (automático)</option><option value="0">Digital</option></select></label>
+      <label>Stick esquerdo (mover vara)<select id="padLeftAxis"><option value="0">Eixos 0 / 1 (padrão)</option><option value="2">Eixos 2 / 3</option><option value="4">Eixos 4 / 5</option></select></label>
+      <label>Stick direito (recolher linha)<select id="padRightAxis"><option value="2">Eixos 2 / 3 (padrão)</option><option value="4">Eixos 4 / 5</option><option value="0">Eixos 0 / 1</option></select></label>
+      <label class="padcfg-range">Zona morta <span id="padDeadzoneValue">13%</span><input id="padDeadzone" type="range" min="0" max="40" step="1" value="13"/></label>
+      <label>Manivela automática (segurar)<select id="padCrank"><option value="-1">Desativada — usar stick direito</option><option value="11">R3 — apertar stick direito</option><option value="10">L3 — apertar stick esquerdo</option></select></label>
+      <label class="padcfg-check"><input type="checkbox" id="padInvertLY"/> Inverter vertical esquerdo</label>
+      <label class="padcfg-check"><input type="checkbox" id="padInvertRY"/> Inverter vertical direito</label>
+    </div>
+    <div class="padcfg-preview"><div class="pad-stick-view"><strong>Analógico esquerdo</strong><div class="pad-stick-ring"><i id="padDotLeft"></i></div></div>
+      <div class="pad-stick-view"><strong>Analógico direito</strong><div class="pad-stick-ring"><i id="padDotRight"></i></div></div>
+      <p id="padAxesLive">E: 128 / 128 • D: 128 / 128</p><p id="padAnalogLive" class="padcfg-state">Aguardando jogo</p></div>
+    <h3>Mapear botões do controle</h3>
+    <div class="padcfg-map">
+      <label>Confirmar / ✕<select id="map-cross"></select></label>
+      <label>Voltar / ◯<select id="map-circle"></select></label>
+      <label>Quadrado / □<select id="map-square"></select></label>
+      <label>Triângulo / △<select id="map-triangle"></select></label>
+      <label>L1 / aliviar linha<select id="map-l1"></select></label>
+      <label>R1 / aliviar linha<select id="map-r1"></select></label>
+      <label>L2<select id="map-l2"></select></label>
+      <label>R2<select id="map-r2"></select></label>
+      <label>START<select id="map-start"></select></label>
+      <label>SELECT<select id="map-select"></select></label>
+    </div>
+    <p class="padcfg-hint">Gire continuamente o analógico direito em círculos para recolher. O analógico esquerdo movimenta a vara. No teclado, segure <b>C</b> para simular a manivela. As preferências são salvas neste navegador.</p>
+    <div class="padcfg-actions"><button type="button" id="padReset">Restaurar padrões</button><button type="button" id="padSave">Salvar e voltar ao jogo</button></div>
+  </div>
+</div>
+<script src="audio-wsola.js"></script>\n<script src="fish-controls.js"></script>
 <script>
 'use strict';
 (function () {
@@ -357,6 +426,8 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     setStatus: setStatus,
     onRuntimeInitialized: function() {
       runtimeReady = true;
+      if(window.FishControls && typeof Module._psx_web_set_pad_mode==='function')
+        Module._psx_web_set_pad_mode(FishControls.config().mode);
       if (typeof Module._fish_web_set_direct_present === 'function' && initFastRenderer()) {
         Module._fish_web_set_direct_present(1);
         log('Renderização rápida WebGL2 ativada');
@@ -519,7 +590,7 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     KeyQ:10, KeyW:11, KeyE:8, KeyR:9, ShiftRight:0
   };
   window.addEventListener('keydown',function(event) {
-    if (Object.prototype.hasOwnProperty.call(keyboardCodes,event.code)) {
+    if ((Object.prototype.hasOwnProperty.call(keyboardCodes,event.code) || event.code==='KeyC') && document.getElementById('padConfigModal').hidden) {
       pressedKeys.add(event.code);
       if (document.activeElement===canvas && event.code.startsWith('Arrow'))
         event.preventDefault();
@@ -535,31 +606,23 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     ['pointerup','pointercancel','lostpointercapture','pointerleave'].forEach(function(t){key.addEventListener(t,up);});
   });
 
-  var gamepadBitIndex = {0:14,1:13,2:15,3:12,4:10,5:11,6:8,7:9,8:0,9:3,12:4,13:6,14:7,15:5};
+  // Analog-aware PS1 input bridge. Unlike the old implementation this forwards
+  // LX/LY/RX/RY bytes and maintains the DualShock analog type (0x73).
   function publishPad() {
-    if (started && typeof Module._psx_web_set_pad_buttons === 'function') {
-      if (!controlsReady) { controlsReady=true; log('Ponte de teclado/gamepad conectada ao SIO do PS1'); }
-      var word=65535;
-      pressedKeys.forEach(function(key) {
-        if (Object.prototype.hasOwnProperty.call(keyboardCodes,key)) word &= ~(1 << keyboardCodes[key]);
-      });
-      try {
-        Array.from(navigator.getGamepads()||[]).forEach(function(pad) {
-          if (!pad || !pad.connected) return;
-          Object.keys(gamepadBitIndex).forEach(function(key) {
-            if (pad.buttons[key] && pad.buttons[key].pressed) word &= ~(1 << gamepadBitIndex[key]);
-          });
-          if (pad.axes.length >= 2) {
-            if (pad.axes[0] < -0.4) word &= ~(1 << 7);
-            if (pad.axes[0] > 0.4) word &= ~(1 << 5);
-            if (pad.axes[1] < -0.4) word &= ~(1 << 4);
-            if (pad.axes[1] > 0.4) word &= ~(1 << 6);
-          }
-        });
-      } catch (error) { /* Browsers can deny Gamepad API until a user gesture. */ }
-      Module._psx_web_set_pad_buttons(word);
+    if (window.FishControls) {
+      var result=FishControls.publish(Module,started,pressedKeys,keyboardCodes);
+      if(!controlsReady && started && typeof Module._psx_web_set_pad_axes==='function'){
+        controlsReady=true;log('Ponte DualShock analógica conectada ao SIO do PS1');
+      }
     }
     requestAnimationFrame(publishPad);
+  }
+  if(window.FishControls){
+    var names=FishControls.names;
+    document.querySelectorAll('.padcfg-map select').forEach(function(select){
+      select.innerHTML=names.map(function(n,i){return '<option value="'+i+'">'+n+'</option>';}).join('');
+    });
+    FishControls.initUI(function(){pressedKeys.clear();},function(){});
   }
   requestAnimationFrame(publishPad);
   document.getElementById('fullscreen').addEventListener('click', function() {

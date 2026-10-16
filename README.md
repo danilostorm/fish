@@ -142,3 +142,7 @@ O histórico de testes de áudio adaptativo permanece em `docs/AUDIO_WEB_STABILI
 Para evitar falhas em **música e efeitos**, o player agora usa `web/audio-wsola.js`, um alongador de áudio PCM estéreo com sobreposição de janelas similares. Ele estabiliza o fluxo quando o PS1 recompilado gera menos de 44,1k amostras/segundo em tempo real. Diferentemente do antigo modo adaptativo, o `AudioBufferSourceNode.playbackRate` permanece 1,0× e o tom não é reduzido artificialmente. **O andamento pode continuar mais lento enquanto a emulação estiver abaixo de 60 ciclos/s** e transientes podem sofrer leves artefatos. O processamento não modifica os arquivos PT-BR nem a simulação.
 
 Em teste real no Chromium AEROCOOL, o WSOLA v2 ficou 30 segundos sem underruns ou descartes a 45–51 ciclos/s; outro teste de 24 segundos teve um único underrun e nenhum descarte. O teste de seno 440 Hz confirmou a frequência nominal após o processamento. Veja [diagnóstico completo e limitações](docs/AUDIO_WSOLA.md).
+
+## DualShock analógico e configuração de controles
+
+O navegador agora transmite os **4 eixos analógicos reais (LX/LY/RX/RY)** e os botões ao hardware SIO do PS1 recompilado, com modo DualShock analógico como padrão. Abra **Configurar controle** no painel ou durante a partida para ajustar controles Xbox/iPega/PlayStation, zona morta, eixos do stick direito, inversão, botões e manivela via R3. No teclado, segure **C** para simular uma rotação contínua do stick direito. Os ajustes ficam salvos no navegador. Confira [configuração e testes](docs/CONTROLS_ANALOG.md).

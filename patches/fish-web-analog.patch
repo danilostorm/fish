@@ -1,0 +1,83 @@
+--- a/runtime/src/main.cpp
++++ b/runtime/src/main.cpp
+@@ -291,0 +292,22 @@
++/* PS1 DualShock analogue bytes (LX, LY, RX, RY). Shared atomically across
++ * the browser main thread and Emscripten guest worker. Default centred.
++ * 0: digital; 1: analogue DualShock; 2: hybrid mode. */
++static std::atomic<uint32_t> g_fish_web_axes{0x80808080u};
++static std::atomic<int> g_fish_web_gamepad_connected{0};
++static std::atomic<int> g_fish_web_mode{1};
++extern "C" EMSCRIPTEN_KEEPALIVE void psx_web_set_pad_axes(uint32_t packed, int gamepad_connected) {
++    g_fish_web_axes.store(packed, std::memory_order_release);
++    g_fish_web_gamepad_connected.store(gamepad_connected ? 1 : 0,
++                                     std::memory_order_release);
++}
++extern "C" EMSCRIPTEN_KEEPALIVE void psx_web_set_pad_mode(int mode) {
++    if (mode >= 0 && mode <= 2)
++        g_fish_web_mode.store(mode, std::memory_order_release);
++}
++extern "C" EMSCRIPTEN_KEEPALIVE uint32_t psx_web_get_pad_axes(void) {
++    return g_fish_web_axes.load(std::memory_order_acquire);
++}
++extern "C" EMSCRIPTEN_KEEPALIVE int psx_web_get_pad_analog(void) {
++    return sio_get_pad_analog(0);
++}
++
+@@ -2113 +2135,5 @@
+-        sio_set_pad_analog(s, pad_mode_boot_analog(p.mode), 0x80, 0x80, 0x80, 0x80);
++        int boot_analog = pad_mode_boot_analog(p.mode);
++#if defined(PSX_WEB)
++        if (s == 0) boot_analog = g_fish_web_mode.load(std::memory_order_acquire) != 0;
++#endif
++        sio_set_pad_analog(s, boot_analog, 0x80, 0x80, 0x80, 0x80);
+@@ -2118 +2144,5 @@
+-        sio_set_pad_config_capable(s, p.mode != PSXRecompV4::PAD_MODE_DIGITAL);
++        bool config_capable = p.mode != PSXRecompV4::PAD_MODE_DIGITAL;
++#if defined(PSX_WEB)
++        if (s == 0) config_capable = g_fish_web_mode.load(std::memory_order_acquire) != 0;
++#endif
++        sio_set_pad_config_capable(s, config_capable);
+@@ -2450,0 +2481,8 @@
++#if defined(PSX_WEB)
++        if (s == 0) {
++            const int requested = g_fish_web_mode.load(std::memory_order_acquire);
++            mode = requested == 0 ? PSXRecompV4::PAD_MODE_DIGITAL
++                 : requested == 1 ? PSXRecompV4::PAD_MODE_ANALOG
++                 : PSXRecompV4::PAD_MODE_HYBRID;
++        }
++#endif
+@@ -2471,0 +2510,27 @@
++#if defined(PSX_WEB)
++        if (s == 0) {
++            uint32_t packed = g_fish_web_axes.load(std::memory_order_acquire);
++            uint8_t web_axes[4] = {
++                (uint8_t)(packed & 0xFFu),
++                (uint8_t)((packed >> 8) & 0xFFu),
++                (uint8_t)((packed >> 16) & 0xFFu),
++                (uint8_t)((packed >> 24) & 0xFFu)
++            };
++            const bool web_stick_live = (web_axes[0] != 0x80 ||
++                                         web_axes[1] != 0x80 ||
++                                         web_axes[2] != 0x80 ||
++                                         web_axes[3] != 0x80);
++            if (mode == PSXRecompV4::PAD_MODE_HYBRID && web_stick_live) {
++                p.hybrid_analog = true;
++                eff_analog = 1;
++            }
++            if (eff_analog) {
++                /* Browser Gamepad API analog axes are authoritative for P1.
++                 * Keep SDL keyboard stick fallback if the web values are centred. */
++                for (int i = 0; i < 4; ++i) {
++                    if (g_fish_web_gamepad_connected.load(std::memory_order_acquire) ||
++                        web_axes[i] != 0x80) st[i] = web_axes[i];
++                }
++            }
++        }
++#endif
+@@ -4086 +4151,5 @@
+-        sio_set_pad_analog(s, pad_mode_boot_analog(g_players[s].mode), 0x80, 0x80, 0x80, 0x80);
++        int boot_analog = pad_mode_boot_analog(g_players[s].mode);
++#if defined(PSX_WEB)
++        if (s == 0) boot_analog = g_fish_web_mode.load(std::memory_order_acquire) != 0;
++#endif
++        sio_set_pad_analog(s, boot_analog, 0x80, 0x80, 0x80, 0x80);

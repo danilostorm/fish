@@ -34,6 +34,20 @@ The user's disc was inspected directly on 2026-10-16. It is a valid BIN/CUE Play
 
 PSXRecomp is a **native recompiler/runtime**. It does **not** automatically turn any PS1 game into a working browser port. A working PS1 browser backend is part of the engineering required here. See [browser road map](docs/WEB_PORT_ROADMAP.md).
 
+## Easiest preparation on AEROCOOL / Unraid
+
+Copy the game archive into the cloned folder at \`/mnt/user/Games/fish-port/input.7z\` (the archive stays private and is gitignored). Then:
+
+\`\`\`sh
+cd /mnt/user/Games/fish-port
+python3 tools/prepare_input.py ./input.7z --output private
+python3 -m unittest discover -s tests -v
+\`\`\`
+
+This calls the system's \`7z\`, safely prepares \`private/disc.cue\` and its BIN track, extracts the PS-X EXE, checks the known USA SHA-1, and writes the function-seed list. Do not push the private folder or binaries to GitHub.
+
+**AEROCOOL workspace:** \`/mnt/user/Games/fish-port\` was created and the disc-probe test suite passed there. The actual game image is *not* yet present on AEROCOOL; local preparation and native/web code generation on that host therefore have not been run.
+
 ## Local disc preparation
 
 Use a legal copy of the USA disc, keeping the .cue and its .bin in the same local folder:

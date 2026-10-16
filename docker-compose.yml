@@ -2,6 +2,7 @@ services:
   fish-web:
     image: nginx:alpine
     restart: unless-stopped
+    network_mode: bridge
     ports:
       - "18872:80"
     volumes:

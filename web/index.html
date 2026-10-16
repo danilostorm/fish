@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#06162a">
+<title>Fisherman's Bait 2 — Web Recomp (Alpha)</title>
+<style>
+:root { color-scheme: dark; font: 16px/1.5 system-ui, sans-serif; background:#061523; color:#ecfaff; }
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 0%,#164762 0%,#091c2d 44%,#061523 100%);min-height:100vh}
+header{padding:20px max(20px,calc((100vw - 1160px)/2));border-bottom:1px solid #286075;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-weight:900;letter-spacing:.12em;font-size:13px;color:#8bdded}.chip{font-size:11px;color:#f8d28d;border:1px solid #897343;padding:5px 9px;border-radius:999px}
+main{max-width:1160px;margin:0 auto;padding:24px 20px 36px}h1{font-size:clamp(30px,4vw,52px);letter-spacing:-.04em;margin:0 0 10px}
+.lead{color:#acc9d5;max-width:780px;margin:0 0 25px}.layout{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:20px}
+.player{background:#02080e;border:1px solid #387487;border-radius:18px;overflow:hidden;min-height:320px;display:flex;flex-direction:column}
+canvas{width:100%;aspect-ratio:4/3;max-height:min(64vh,650px);display:block;object-fit:contain;image-rendering:pixelated;background:#020508;outline:0}
+.bar{padding:12px 17px;background:#0b2636;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;color:#91ccda}
+.side{background:rgba(12,43,61,.87);border:1px solid #2d6175;border-radius:18px;padding:20px}h2{font-size:17px;margin:0 0 10px}
+label{display:block;font-size:13px;margin-bottom:8px;color:#badce3}input[type=file]{max-width:100%;font-size:12px;margin-bottom:18px}
+button{width:100%;padding:13px 15px;color:#03212b;font-weight:800;background:#53d6da;border:0;border-radius:10px;cursor:pointer}
+button:disabled{opacity:.55;cursor:not-allowed}button.secondary{margin-top:8px;background:transparent;color:#a7ebf1;border:1px solid #387487}
+.note{font-size:12px;color:#a9c6d2;margin-top:18px}
+pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:auto;white-space:pre-wrap;border:1px solid #235165;border-radius:12px;background:#071723;padding:15px}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.side{order:-1}header{padding-inline:18px}}
+</style>
+</head>
+<body>
+<header><span class="brand">HOSTSTORM · FISH WEB RECOMP</span><span class="chip">EXPERIMENTAL • NOT VERIFIED PLAYABLE</span></header>
+<main>
+  <h1>Fisherman's Bait 2</h1>
+  <p class="lead">Port experimental do código de PlayStation 1 para WebAssembly. Seu disco permanece no seu navegador. Não usa EmulatorJS.</p>
+  <div class="layout">
+    <section class="player">
+      <canvas id="canvas" width="640" height="480" tabindex="0" aria-label="Tela do jogo"></canvas>
+      <div class="bar"><span id="status">Carregando o runtime WebAssembly…</span><span id="fileStatus"></span></div>
+    </section>
+    <aside class="side">
+      <h2>Iniciar jogo</h2>
+      <label for="discFiles">Selecione juntos os arquivos .cue e .bin do seu próprio disco PS1 (região EUA)</label>
+      <input id="discFiles" type="file" multiple accept=".cue,.bin,.CUE,.BIN">
+      <button id="start" disabled>Iniciar recompilação</button>
+      <button class="secondary" id="fullscreen">Tela cheia</button>
+      <p class="note">Controle USB/Bluetooth via Gamepad API, teclado pelo runtime. Alpha técnica: não foi validada a chegada ao menu ou gameplay. Requer um navegador moderno e memória suficiente para carregar a imagem do disco (aprox. 119 MB).</p>
+    </aside>
+  </div>
+  <pre id="log" aria-label="Log de diagnóstico"></pre>
+</main>
+<script>
+'use strict';
+(function () {
+  var start = document.getElementById('start');
+  var discInput = document.getElementById('discFiles');
+  var statusNode = document.getElementById('status');
+  var fileNode = document.getElementById('fileStatus');
+  var logNode = document.getElementById('log');
+  var canvas = document.getElementById('canvas');
+  var runtimeReady = false;
+  var busy = false;
+  function log(s) {
+    var str = String(s);
+    logNode.textContent = (logNode.textContent + str + '\n').slice(-30000);
+    logNode.scrollTop = logNode.scrollHeight;
+    console.info('[FISH]',str);
+  }
+  function setStatus(s) { statusNode.textContent = s; }
+  function files() { return Array.from(discInput.files || []); }
+  function selected() {
+    var list = files();
+    return { cue: list.find(function(f){return f.name.toLowerCase().endsWith('.cue');}),
+             bin: list.find(function(f){return f.name.toLowerCase().endsWith('.bin');}) };
+  }
+  function update() {
+    var selectedFiles = selected();
+    start.disabled = !runtimeReady || busy || !selectedFiles.cue || !selectedFiles.bin;
+    fileNode.textContent = selectedFiles.cue && selectedFiles.bin ? 'Disco selecionado' : 'Aguardando BIN/CUE';
+  }
+  var Module = window.Module = {
+    canvas: canvas,
+    noInitialRun: true,
+    print: function() {log(Array.from(arguments).join(' '));},
+    printErr: function() {log(Array.from(arguments).join(' '));},
+    setStatus: setStatus,
+    onRuntimeInitialized: function() { runtimeReady = true; setStatus('Runtime carregado — selecione o disco.'); update(); },
+    onAbort: function(reason) {setStatus('Runtime interrompido. Consulte o log.'); log('ABORT: ' + reason);}
+  };
+  discInput.addEventListener('change', update);
+  document.getElementById('fullscreen').addEventListener('click', function() {
+    if (document.fullscreenElement) { document.exitFullscreen(); }
+    else { canvas.requestFullscreen().catch(function(err){log(err);}); }
+  });
+  function sector(bytes, lba) {
+    var base = lba * 2352;
+    if (base + 2352 > bytes.length) throw Error('Setor fora da imagem do disco: ' + lba);
+    if (bytes[base] !== 0 || bytes[base+1] !== 255 || bytes[base+11] !== 0) throw Error('Imagem não está em BIN raw 2352: LBA ' + lba);
+    var mode = bytes[base+15];
+    var offset = mode === 1 ? 16 : mode === 2 ? 24 : -1;
+    if (offset < 0) throw Error('Modo de setor de CD não suportado: ' + mode);
+    return bytes.subarray(base + offset, base + offset + 2048);
+  }
+  function u32(bytes, at) {
+    return ((bytes[at] | (bytes[at+1] << 8) | (bytes[at+2] << 16) | (bytes[at+3] << 24)) >>> 0);
+  }
+  function isoEntries(data) {
+    var entries = [];
+    var offset = 0;
+    var decoder = new TextDecoder('ascii');
+    while (offset < data.length) {
+      var n = data[offset];
+      if (!n) {offset = (Math.floor(offset/2048)+1)*2048; continue;}
+      if (offset+n > data.length || n < 34) throw Error('Registro ISO9660 inválido');
+      var nameLength = data[offset+32];
+      if (nameLength && data[offset+33] > 1) {
+        entries.push({ name:decoder.decode(data.subarray(offset+33,offset+33+nameLength)).replace(/;[0-9]+$/, ''),
+          lba:u32(data,offset+2), size:u32(data,offset+10) });
+      }
+      offset += n;
+    }
+    return entries;
+  }
+  function isoFile(bytes, entry) {
+    if (entry.size > 16*1024*1024) throw Error('Executável ISO9660 muito grande');
+    var out = new Uint8Array(entry.size);
+    for(var i=0;i<entry.size;i+=2048) out.set(sector(bytes, entry.lba+(i/2048)).subarray(0,Math.min(2048,entry.size-i)),i);
+    return out;
+  }
+  function extractExe(bytes) {
+    var pvd = sector(bytes,16);
+    if (String.fromCharCode.apply(null,pvd.subarray(1,6)) !== 'CD001') throw Error('Disco sem ISO9660');
+    var root = {lba:u32(pvd,158), size:u32(pvd,166)};
+    if (root.size > 4*1024*1024) throw Error('Diretório raiz grande demais');
+    var rootBytes = new Uint8Array(root.size);
+    for (var i=0;i<root.size;i+=2048) rootBytes.set(sector(bytes,root.lba+(i/2048)).subarray(0,Math.min(2048,root.size-i)),i);
+    var entry = isoEntries(rootBytes).find(function(item){return item.name.toUpperCase()==='SLUS_009.99';});
+    if (!entry) throw Error('Não é a versão USA esperada (SLUS_009.99)');
+    var exe = isoFile(bytes,entry);
+    if (new TextDecoder('ascii').decode(exe.subarray(0,8)) !== 'PS-X EXE') throw Error('Cabeçalho PS-X EXE inválido');
+    return exe;
+  }
+  function config(name) {
+    if (/["\\\r\n]/.test(name)) throw Error('Nome de arquivo de disco inválido');
+    return '[game]\nname = "Fishermans Bait 2"\nid = "SLUS-00999"\nexe = "/game/SLUS_009.99"\ndisc = "/game/disc/' + name + '"\nload_address = "0x80010000"\nentry_pc = "0x8009A7C8"\ntext_size = "0x000B1000"\nstack_base = "0x801FFFF0"\n\n[recompiler]\nseeds = "seeds.txt"\nstrict = true\nout_dir = "generated"\n\n[runtime]\ndebug_port = 0\nwindow_title = "Fishermans Bait 2 Web"\nmemcard_dir = "/saves"\ndisc_speed = "1x"\nbios_hle = false\nfast_boot = false\noverlay_cache = false\noverlay_backend = "interp"\nhle_scheduler = true\n\n[video]\nrenderer = "software"\nsupersampling = 1\ntexture_filtering = "nearest"\naspect_ratio = "4:3"\n\n[controller]\ndefault_analog = false\ndeadzone = 12000\n';
+  }
+  start.addEventListener('click', async function() {
+    if (!runtimeReady || busy) return;
+    busy = true; update();
+    try {
+      var pair = selected();
+      var cueText = await pair.cue.text();
+      if (!cueText.includes(pair.bin.name)) throw Error('O CUE deve referenciar o BIN selecionado: ' + pair.bin.name);
+      setStatus('Lendo disco local — não há upload para o servidor…');
+      var bytes = new Uint8Array(await pair.bin.arrayBuffer());
+      var exe = extractExe(bytes);
+      log('Disco validado; executável ' + exe.length + ' bytes');
+      var fs = Module.FS;
+      fs.mkdirTree('/game/disc');
+      fs.mkdirTree('/saves');
+      fs.writeFile('/game/disc/' + pair.bin.name, bytes);
+      fs.writeFile('/game/disc/' + pair.cue.name, new Uint8Array(await pair.cue.arrayBuffer()));
+      fs.writeFile('/game/SLUS_009.99', exe);
+      fs.writeFile('/game.toml', config(pair.cue.name));
+      setStatus('Carregando OpenBIOS…');
+      var response = await fetch('./openbios.bin');
+      if (!response.ok) throw Error('OpenBIOS não encontrado (HTTP '+response.status+')');
+      fs.writeFile('/openbios.bin',new Uint8Array(await response.arrayBuffer()));
+      bytes = null;
+      canvas.focus();
+      setStatus('Iniciando PS1 recompilado…');
+      Module.callMain(['--game','/game.toml','--bios','/openbios.bin','--disc','/game/disc/'+pair.cue.name,'--renderer','software','--no-launcher']);
+      setStatus('Runtime iniciado; confira a tela e o log.');
+    } catch (err) {
+      busy = false; update(); setStatus('Falha ao iniciar. Veja o diagnóstico.');
+      log(err && err.stack || String(err));
+    }
+  });
+  update();
+})();
+</script>
+<script src="psx-runtime.js"></script>
+</body>
+</html>

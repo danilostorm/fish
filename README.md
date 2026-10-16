@@ -30,7 +30,7 @@ The user's disc was inspected directly on 2026-10-16. It is a valid BIN/CUE Play
 2. **Codegen — complete**: PSXRecomp detected 2,277 functions and generated C for 2,317 entries (including 40 branch-target repair entries), producing ~1.74 million lines of C and a dispatch table. More dynamic code investigations remain.
 3. **Browser WASM build — complete**: Emscripten 4.0.23 produced a 14,186,692-byte WebAssembly binary, JS glue and HTML shell. Compilation/linking exited 0.
 4. **Browser runtime — partly tested**: Chromium loaded the WASM, accepted local BIN/CUE, extracted SLUS_009.99, loaded OpenBIOS and entered BIOS at `0xBFC00000` with no JS errors. With the standard BIOS a green cube animation and black screen appeared; switching to OpenBIOS Fastboot reached the game's Konami intro at 35 seconds and PRESS START BUTTON at 55 seconds.
-5. **Start input and gameplay — in progress**: confirm START advances the title into the menus and fishing gameplay; then validate audio, streamed content and overlays, save data, mobile and TV.
+5. **Start input and gameplay — in progress**: START advanced past the title to Willow Lake; fishing gameplay, audio, streamed content, saves, mobile and TV still need comprehensive validation.
 
 PSXRecomp is a **native recompiler/runtime**. It does **not** automatically turn any PS1 game into a working browser port. A working PS1 browser backend is part of the engineering required here. See [browser road map](docs/WEB_PORT_ROADMAP.md).
 
@@ -67,10 +67,14 @@ bash scripts/package-web.sh
 docker compose up -d
 ```
 
-Open `http://192.168.30.10:18872/` from a device that can reach AEROCOOL. The web app asks you to select your own CUE and BIN files. It does **not** upload the game to the server. The hosted build includes OpenBIOS under its license but does not include Konami game files. The original title screen has been confirmed under Chromium with the Fastboot BIOS; gameplay is still under test.
+Open the AEROCOOL LAN site at http://192.168.30.10:18872/. The browser now fetches the installed BIN/CUE automatically and starts the recompilation runtime, with no file picker or web Start button. Downloading the 119 MB disc can take a minute or more. The UI has a restart button; keyboard Enter maps to the PS1 START key.
+
+The Docker compose service mounts the existing private/original-disc directory read-only at /srv/fish-disc and nginx maps only two explicit HTTP routes: /game-data/disc.cue and /game-data/disc.bin. This allows the image to be loaded into browser memory on visiting the site. It also makes the full copyrighted game disc downloadable to anyone able to reach those HTTP routes. Keep this preview on a PRIVATE LOCAL NETWORK. Do NOT forward its port, publish its address through NPM, or offer it on the public internet without redistribution rights. The original game disc is never copied into Git or dist-web.
+
+The headless Chromium autoload smoke test confirms the page loads both routes (HTTP 200), finds no file chooser, initializes the PSXRecomp WebAssembly runtime, and displays the actual title screen without JS errors. It does NOT yet guarantee fishing gameplay.
 
 To rebuild WASM on AEROCOOL use the `emscripten/emsdk:4.0.23` container with a compatible PSXRecomp runtime mounted separately, as documented in [`docs/WEB_PORT_ROADMAP.md`](docs/WEB_PORT_ROADMAP.md).
 
 ## Legal and distribution
 
-No ROM/BIN/CUE, BIOS, game executable, game assets, generated C containing original code, or playable binary is distributed in this repository. Users must provide their own legally obtained game data locally. Konami and PlayStation remain trademarks of their respective owners.
+The public Git repository excludes original game BIN/CUE, executables and assets, generated C retaining original game code, and assembled binaries. This private developer preview serves the local disc over exact-file HTTP routes to support auto boot; access to those URLs gives access to the game content. Keep it private, and only distribute game materials with permission. OpenBIOS is a separately licensed component of the browser package. Konami and PlayStation remain trademarks of their respective owners.

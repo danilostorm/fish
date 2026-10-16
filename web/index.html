@@ -25,22 +25,21 @@ pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:aut
 </style>
 </head>
 <body>
-<header><span class="brand">HOSTSTORM · FISH WEB RECOMP</span><span class="chip">ALPHA • TELA DE INÍCIO CONFIRMADA</span></header>
+<header><span class="brand">HOSTSTORM · FISH WEB RECOMP</span><span class="chip">ALPHA • INÍCIO AUTOMÁTICO</span></header>
 <main>
   <h1>Fisherman's Bait 2</h1>
-  <p class="lead">Port experimental do código de PlayStation 1 para WebAssembly. Seu disco permanece no seu navegador. Não usa EmulatorJS.</p>
+  <p class="lead">Port experimental do código de PlayStation 1 para WebAssembly. O jogo inicia automaticamente, sem selecionar arquivos. Não utiliza EmulatorJS.</p>
   <div class="layout">
     <section class="player">
       <canvas id="canvas" width="640" height="480" tabindex="0" aria-label="Tela do jogo"></canvas>
       <div class="bar"><span id="status">Carregando o runtime WebAssembly…</span><span id="fileStatus"></span></div>
     </section>
     <aside class="side">
-      <h2>Iniciar jogo</h2>
-      <label for="discFiles">Selecione juntos os arquivos .cue e .bin do seu próprio disco PS1 (região EUA)</label>
-      <input id="discFiles" type="file" multiple accept=".cue,.bin,.CUE,.BIN">
-      <button id="start" disabled>Iniciar jogo</button>
+      <h2>Pronto para jogar</h2>
+      <p class="note">O jogo será carregado automaticamente do servidor local. Não é necessário selecionar o disco ou apertar Iniciar no site.</p>
+      <button id="reload">Reiniciar jogo</button>
       <button class="secondary" id="fullscreen">Tela cheia</button>
-      <p class="note">Teclado: setas para mover; Enter = START; X = botão X do PS1; S = círculo; Z = quadrado; A = triângulo. Controle USB/Bluetooth pela Gamepad API. Alpha técnica: tela de início confirmada, mas menus e gameplay ainda em validação. A inicialização pode levar cerca de um minuto. Requer um navegador moderno e memória suficiente para carregar a imagem do disco (aprox. 119 MB).</p>
+      <p class="note">Teclado: setas para mover; Enter = START; X = botão X do PS1; S = círculo; Z = quadrado; A = triângulo. Controle USB/Bluetooth pela Gamepad API. Se não houver som, clique na tela do jogo para ativar o áudio. Versão experimental: menus e gameplay ainda em validação. O carregamento pode levar um minuto ou mais, conforme sua conexão e dispositivo.</p>
     </aside>
   </div>
   <pre id="log" aria-label="Log de diagnóstico"></pre>
@@ -48,14 +47,14 @@ pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:aut
 <script>
 'use strict';
 (function () {
-  var start = document.getElementById('start');
-  var discInput = document.getElementById('discFiles');
+  var reloadButton = document.getElementById('reload');
   var statusNode = document.getElementById('status');
   var fileNode = document.getElementById('fileStatus');
   var logNode = document.getElementById('log');
   var canvas = document.getElementById('canvas');
   var runtimeReady = false;
   var busy = false;
+  var started = false;
   function log(s) {
     var str = String(s);
     logNode.textContent = (logNode.textContent + str + '\n').slice(-30000);
@@ -63,27 +62,16 @@ pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:aut
     console.info('[FISH]',str);
   }
   function setStatus(s) { statusNode.textContent = s; }
-  function files() { return Array.from(discInput.files || []); }
-  function selected() {
-    var list = files();
-    return { cue: list.find(function(f){return f.name.toLowerCase().endsWith('.cue');}),
-             bin: list.find(function(f){return f.name.toLowerCase().endsWith('.bin');}) };
-  }
-  function update() {
-    var selectedFiles = selected();
-    start.disabled = !runtimeReady || busy || !selectedFiles.cue || !selectedFiles.bin;
-    fileNode.textContent = selectedFiles.cue && selectedFiles.bin ? 'Disco selecionado' : 'Aguardando BIN/CUE';
-  }
   var Module = window.Module = {
     canvas: canvas,
     noInitialRun: true,
     print: function() {log(Array.from(arguments).join(' '));},
     printErr: function() {log(Array.from(arguments).join(' '));},
     setStatus: setStatus,
-    onRuntimeInitialized: function() { runtimeReady = true; setStatus('Runtime carregado — selecione o disco.'); update(); },
+    onRuntimeInitialized: function() { runtimeReady = true; setStatus('Runtime pronto. Carregando o disco automaticamente…'); setTimeout(autostart, 0); },
     onAbort: function(reason) {setStatus('Runtime interrompido. Consulte o log.'); log('ABORT: ' + reason);}
   };
-  discInput.addEventListener('change', update);
+  reloadButton.addEventListener('click', function() { window.location.reload(); });
   document.getElementById('fullscreen').addEventListener('click', function() {
     if (document.fullscreenElement) { document.exitFullscreen(); }
     else { canvas.requestFullscreen().catch(function(err){log(err);}); }
@@ -140,39 +128,80 @@ pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:aut
     if (/["\\\r\n]/.test(name)) throw Error('Nome de arquivo de disco inválido');
     return '[game]\nname = "Fishermans Bait 2"\nid = "SLUS-00999"\nexe = "/game/SLUS_009.99"\ndisc = "/game/disc/' + name + '"\nload_address = "0x80010000"\nentry_pc = "0x8009A7C8"\ntext_size = "0x000B1000"\nstack_base = "0x801FFFF0"\n\n[recompiler]\nseeds = "seeds.txt"\nstrict = true\nout_dir = "generated"\n\n[runtime]\ndebug_port = 0\nwindow_title = "Fishermans Bait 2 Web"\nmemcard_dir = "/saves"\ndisc_speed = "1x"\nbios_hle = false\nfast_boot = false\noverlay_cache = false\noverlay_backend = "interp"\nhle_scheduler = true\n\n[video]\nrenderer = "software"\nsupersampling = 1\ntexture_filtering = "nearest"\naspect_ratio = "4:3"\n\n[controller]\ndefault_analog = false\ndeadzone = 12000\n';
   }
-  start.addEventListener('click', async function() {
-    if (!runtimeReady || busy) return;
-    busy = true; update();
+  async function downloadDisc() {
+    setStatus('Baixando a imagem do jogo do servidor…');
+    var response = await fetch('./game-data/disc.bin', {cache:'no-store'});
+    if (!response.ok) throw Error('Imagem do jogo indisponível (HTTP ' + response.status + ')');
+    var len = Number(response.headers.get('content-length'));
+    if (!Number.isSafeInteger(len) || len < 10000000 || len > 250000000) {
+      throw Error('Tamanho inesperado da imagem de disco: ' + len);
+    }
+    var bytes = new Uint8Array(len);
+    if (!response.body || !response.body.getReader) {
+      var arr = new Uint8Array(await response.arrayBuffer());
+      if (arr.length !== len) throw Error('Download incompleto');
+      bytes.set(arr);
+      return bytes;
+    }
+    var reader = response.body.getReader();
+    var loaded = 0, lastPercent = -1;
+    while (true) {
+      var part = await reader.read();
+      if (part.done) break;
+      if (loaded + part.value.byteLength > len) throw Error('Imagem maior que Content-Length');
+      bytes.set(part.value, loaded);
+      loaded += part.value.byteLength;
+      var pct = Math.floor(100 * loaded / len);
+      if (pct !== lastPercent && pct % 2 === 0) {
+        setStatus('Baixando o jogo… ' + pct + '%');
+        fileNode.textContent = Math.round(loaded / 1048576) + ' / ' + Math.round(len / 1048576) + ' MiB';
+        lastPercent = pct;
+      }
+    }
+    if (loaded !== len) throw Error('Download incompleto: ' + loaded + ' de ' + len);
+    return bytes;
+  }
+  async function autostart() {
+    if (!runtimeReady || busy || started) return;
+    busy = true;
     try {
-      var pair = selected();
-      var cueText = await pair.cue.text();
-      if (!cueText.includes(pair.bin.name)) throw Error('O CUE deve referenciar o BIN selecionado: ' + pair.bin.name);
-      setStatus('Lendo disco local — não há upload para o servidor…');
-      var bytes = new Uint8Array(await pair.bin.arrayBuffer());
+      var response = await fetch('./game-data/disc.cue', {cache:'no-store'});
+      if (!response.ok) throw Error('CUE não encontrado no servidor (HTTP ' + response.status + ')');
+      var cueText = await response.text();
+      var match = cueText.match(/^\s*FILE\s+"([^"\/\\\r\n]+\.bin)"\s+BINARY\s*$/im);
+      if (!match) throw Error('CUE esperado não contém uma faixa BIN válida');
+      var binName = match[1];
+      var cueName = 'disc.cue';
+      var bytes = await downloadDisc();
+      if (bytes.length !== 118747776) throw Error('Disco inesperado: tamanho diferente da cópia já validada');
+      setStatus('Validando o disco e preparando a memória…');
       var exe = extractExe(bytes);
-      log('Disco validado; executável ' + exe.length + ' bytes');
+      log('Imagem validada: ' + bytes.length + ' bytes; SLUS_009.99: ' + exe.length + ' bytes');
       var fs = Module.FS;
       fs.mkdirTree('/game/disc');
       fs.mkdirTree('/saves');
-      fs.writeFile('/game/disc/' + pair.bin.name, bytes);
-      fs.writeFile('/game/disc/' + pair.cue.name, new Uint8Array(await pair.cue.arrayBuffer()));
+      fs.writeFile('/game/disc/' + binName, bytes);
+      fs.writeFile('/game/disc/' + cueName, new TextEncoder().encode(cueText));
       fs.writeFile('/game/SLUS_009.99', exe);
-      fs.writeFile('/game.toml', config(pair.cue.name));
-      setStatus('Carregando OpenBIOS Fastboot…');
-      var response = await fetch('./openbios-fastboot.bin');
-      if (!response.ok) throw Error('OpenBIOS não encontrado (HTTP '+response.status+')');
-      fs.writeFile('/openbios.bin',new Uint8Array(await response.arrayBuffer()));
+      fs.writeFile('/game.toml', config(cueName));
       bytes = null;
+      setStatus('Carregando OpenBIOS…');
+      var biosResponse = await fetch('./openbios-fastboot.bin');
+      if (!biosResponse.ok) throw Error('OpenBIOS indisponível (HTTP ' + biosResponse.status + ')');
+      fs.writeFile('/openbios.bin', new Uint8Array(await biosResponse.arrayBuffer()));
+      started = true;
+      fileNode.textContent = 'Jogo carregado';
       canvas.focus();
       setStatus('Iniciando PS1 recompilado…');
-      Module.callMain(['--game','/game.toml','--bios','/openbios.bin','--disc','/game/disc/'+pair.cue.name,'--renderer','software','--no-launcher']);
-      setStatus('Runtime iniciado — aguarde a tela PRESS START BUTTON.');
+      Module.callMain(['--game','/game.toml','--bios','/openbios.bin','--disc','/game/disc/'+cueName,'--renderer','software','--no-launcher']);
+      setStatus('Jogo iniciado — aguarde a tela PRESS START BUTTON.');
     } catch (err) {
-      busy = false; update(); setStatus('Falha ao iniciar. Veja o diagnóstico.');
+      setStatus('Erro ao iniciar automaticamente. Use Reiniciar jogo.');
       log(err && err.stack || String(err));
+    } finally {
+      busy = false;
     }
-  });
-  update();
+  }
 })();
 </script>
 <script src="Fishermans_Bait_2___Recompiled.js"></script>

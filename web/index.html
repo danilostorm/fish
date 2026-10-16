@@ -25,7 +25,7 @@ pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:aut
 </style>
 </head>
 <body>
-<header><span class="brand">HOSTSTORM · FISH WEB RECOMP</span><span class="chip">EXPERIMENTAL • NOT VERIFIED PLAYABLE</span></header>
+<header><span class="brand">HOSTSTORM · FISH WEB RECOMP</span><span class="chip">ALPHA • TELA DE INÍCIO CONFIRMADA</span></header>
 <main>
   <h1>Fisherman's Bait 2</h1>
   <p class="lead">Port experimental do código de PlayStation 1 para WebAssembly. Seu disco permanece no seu navegador. Não usa EmulatorJS.</p>
@@ -38,9 +38,9 @@ pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:aut
       <h2>Iniciar jogo</h2>
       <label for="discFiles">Selecione juntos os arquivos .cue e .bin do seu próprio disco PS1 (região EUA)</label>
       <input id="discFiles" type="file" multiple accept=".cue,.bin,.CUE,.BIN">
-      <button id="start" disabled>Iniciar recompilação</button>
+      <button id="start" disabled>Iniciar jogo</button>
       <button class="secondary" id="fullscreen">Tela cheia</button>
-      <p class="note">Controle USB/Bluetooth via Gamepad API, teclado pelo runtime. Alpha técnica: não foi validada a chegada ao menu ou gameplay. Requer um navegador moderno e memória suficiente para carregar a imagem do disco (aprox. 119 MB).</p>
+      <p class="note">Controle USB/Bluetooth via Gamepad API, teclado pelo runtime. Alpha técnica: tela de início confirmada, mas menus e gameplay ainda em validação. A inicialização pode levar cerca de um minuto. Requer um navegador moderno e memória suficiente para carregar a imagem do disco (aprox. 119 MB).</p>
     </aside>
   </div>
   <pre id="log" aria-label="Log de diagnóstico"></pre>
@@ -158,15 +158,15 @@ pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:aut
       fs.writeFile('/game/disc/' + pair.cue.name, new Uint8Array(await pair.cue.arrayBuffer()));
       fs.writeFile('/game/SLUS_009.99', exe);
       fs.writeFile('/game.toml', config(pair.cue.name));
-      setStatus('Carregando OpenBIOS…');
-      var response = await fetch('./openbios.bin');
+      setStatus('Carregando OpenBIOS Fastboot…');
+      var response = await fetch('./openbios-fastboot.bin');
       if (!response.ok) throw Error('OpenBIOS não encontrado (HTTP '+response.status+')');
       fs.writeFile('/openbios.bin',new Uint8Array(await response.arrayBuffer()));
       bytes = null;
       canvas.focus();
       setStatus('Iniciando PS1 recompilado…');
       Module.callMain(['--game','/game.toml','--bios','/openbios.bin','--disc','/game/disc/'+pair.cue.name,'--renderer','software','--no-launcher']);
-      setStatus('Runtime iniciado; confira a tela e o log.');
+      setStatus('Runtime iniciado — aguarde a tela PRESS START BUTTON.');
     } catch (err) {
       busy = false; update(); setStatus('Falha ao iniciar. Veja o diagnóstico.');
       log(err && err.stack || String(err));

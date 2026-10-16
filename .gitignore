@@ -30,3 +30,6 @@ __pycache__/
 *.pyc
 .DS_Store
 .env
+
+# Browser distribution is built locally; never commit binaries
+/dist-web/

@@ -1,0 +1,15 @@
+services:
+  fish-web:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "18872:80"
+    volumes:
+      - ./dist-web:/usr/share/nginx/html:ro
+      - ./web/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+    security_opt:
+      - no-new-privileges:true

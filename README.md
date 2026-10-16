@@ -1,6 +1,6 @@
 # Fisherman's Bait 2: Big Ol' Bass — PS1 Web Recompilation
 
-> **Status: reverse engineering / disc verified. NOT PLAYABLE YET.** This repository tracks a real browser-native static recompilation effort, not an EmulatorJS/iframe launcher.
+> **Status: codegen complete, WebAssembly built, browser boot smoke tested. GAMEPLAY NOT VERIFIED.** This repository tracks a real browser-native static recompilation effort, not an EmulatorJS/iframe launcher.
 
 ## Verified input (USA)
 
@@ -27,26 +27,26 @@ The user's disc was inspected directly on 2026-10-16. It is a valid BIN/CUE Play
 ## Plan
 
 1. **Disc validation — complete**: verify ISO9660, SYSTEM.CNF and PS-X EXE.
-2. **Codegen — next**: run the RetroPortingToolKit [PSXRecomp](https://github.com/RetroPortingToolKit/psxrecomp) recompiler with the private, locally extracted `SLUS_009.99` and generated seed file. Capture missing branches and dynamic code loads.
-3. **Native correctness baseline**: boot the recompiled program using the PSXRecomp runtime. Confirm frames, controller, video, sound, CD reads and menu navigation.
-4. **Browser runtime**: replace/adapt incompatible native backends for Emscripten/WebAssembly (GPU WebGL2/WebGPU, WebAudio, input, persistent saves, cooperative scheduling, dynamic overlays).
-5. **Browser gameplay validation**: measure boot/gameplay on Chrome/Firefox/mobile, not just whether a .wasm file builds.
+2. **Codegen — complete**: PSXRecomp detected 2,277 functions and generated C for 2,317 entries (including 40 branch-target repair entries), producing ~1.74 million lines of C and a dispatch table. More dynamic code investigations remain.
+3. **Browser WASM build — complete**: Emscripten 4.0.23 produced a 14,186,692-byte WebAssembly binary, JS glue and HTML shell. Compilation/linking exited 0.
+4. **Browser runtime — partly tested**: Chromium loaded the WASM, accepted local BIN/CUE, extracted SLUS_009.99, loaded OpenBIOS and entered BIOS at `0xBFC00000` with no JS errors. A green geometric frame appeared; this is NOT yet confirmed to be in-game output.
+5. **Menu and gameplay — pending**: investigate BIOS/game transition, CD I/O, streamed content and overlays; then validate inputs, gameplay, sound, saves, mobile and TV.
 
 PSXRecomp is a **native recompiler/runtime**. It does **not** automatically turn any PS1 game into a working browser port. A working PS1 browser backend is part of the engineering required here. See [browser road map](docs/WEB_PORT_ROADMAP.md).
 
 ## Easiest preparation on AEROCOOL / Unraid
 
-Copy the game archive into the cloned folder at `/mnt/user/Games/fish-port/input.7z` (the archive stays private and is gitignored). Then:
+Copy a legal USA disc archive into the cloned folder (the archive stays private and is gitignored). Then:
 
 ```sh
 cd /mnt/user/Games/fish-port
-python3 tools/prepare_input.py ./input.7z --output private
+python3 tools/prepare_input.py "Fisherman's Bait 2 - Big Ol' Bass.7z" --output private
 python3 -m unittest discover -s tests -v
 ```
 
 This calls the system's `7z`, safely prepares `private/disc.cue` and its BIN track, extracts the PS-X EXE, checks the known USA SHA-1, and writes the function-seed list. Do not push the private folder or binaries to GitHub.
 
-**AEROCOOL workspace:** `/mnt/user/Games/fish-port` was created and the disc-probe test suite passed there. The actual game image is *not* yet present on AEROCOOL; local preparation and native/web code generation on that host therefore have not been run.
+**AEROCOOL workspace:** `/mnt/user/Games/fish-port`. Disc extraction, codegen, Emscripten compilation, browser package, Docker nginx and initial Chromium runtime smoke test have all completed. Do not mistake browser boot for confirmed gameplay.
 
 ## Local disc preparation
 
@@ -59,7 +59,17 @@ python3 tools/disc_probe.py "/path/to/Fisherman's Bait 2 - Big Ol' Bass.cue" \
 
 The tool inspects the ISO9660 directory, validates the boot file, extracts `private/SLUS_009.99`, and creates `private/seeds.txt` and `private/disc_probe.json`. Everything under `private/` is excluded from Git.
 
-The next native codegen stage is deliberately not represented as completed. It needs an installed compatible PSXRecomp toolchain plus private disc material.
+### AEROCOOL browser alpha (port 18872)
+
+```sh
+cd /mnt/user/Games/fish-port
+bash scripts/package-web.sh
+docker compose up -d
+```
+
+Open `http://192.168.30.10:18872/` from a device that can reach AEROCOOL. The web app asks you to select your own CUE and BIN files. It does **not** upload the game to the server. The hosted build includes OpenBIOS under its license but does not include Konami game files. A working game menu has **not** yet been demonstrated.
+
+To rebuild WASM on AEROCOOL use the `emscripten/emsdk:4.0.23` container with a compatible PSXRecomp runtime mounted separately, as documented in [`docs/WEB_PORT_ROADMAP.md`](docs/WEB_PORT_ROADMAP.md).
 
 ## Legal and distribution
 

@@ -238,7 +238,7 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     <div class="gamebar-title"><img src="assets/logo.png" alt="Big Ol' Bass"><span class="runtime-badge"><span class="pulse"></span> WebAssembly</span></div>
     <div class="gamebar-controls">
       <button id="enableAudio" type="button">🔊 Ativar som</button>
-      <button id="adaptiveAudio" type="button">Som adaptativo: desativado</button>
+      <button id="adaptiveAudio" type="button">Som adaptativo: ativado</button>
       <button id="rendererMode" type="button">Gráficos: preparando</button>
       <button id="reload" type="button">↻ Reiniciar</button>
       <button id="fullscreen" type="button">⛶ Tela cheia</button>
@@ -451,6 +451,7 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
         return;
       }
       if (state.context.state !== 'running') await state.context.resume();
+      stabilizeFishAudio(state);
       audioButton.textContent = state.context.state === 'running'
         ? 'Saída de áudio desbloqueada · controles ativos' : 'Áudio bloqueado · tente novamente';
       log('AudioContext: ' + state.context.state);
@@ -461,7 +462,43 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
   }
   audioButton.addEventListener('click', enableSound);
   var adaptiveAudioButton = document.getElementById('adaptiveAudio');
-  var adaptiveAudioEnabled = false;
+  // Default to buffer-stabilized audio. The original 44.1 kHz pitch/speed
+  // remains user-selectable; adaptively slowing PCM is opt-in/out in the UI.
+  var adaptiveAudioEnabled = true;
+  function stabilizeFishAudio(state) {
+    if (!state || !state.context || !state.submitPcm || state._fishAudioStabilized) return;
+    var isWin = /Windows|Win32/i.test(navigator.userAgent || navigator.platform || '');
+    // The original interactive profile's 30ms queue ran dry constantly at
+    // the observed 44-54 guest vblanks/sec. Use a moderate safety lead.
+    state.targetLead = Math.max(Number(state.targetLead)||0, isWin ? 0.16 : 0.12);
+    var originalSubmit = state.submitPcm;
+    state.submitPcm = function(ptr, len) {
+      // Never accumulate stale audio while the browser is denying autoplay.
+      if (state.context.state !== 'running') {
+        state.started = false;
+        state.nextTime = state.context.currentTime;
+        return;
+      }
+      var nominal = Number(state.playbackRateScale);
+      if (!Number.isFinite(nominal) || nominal <= 0) nominal = 1;
+      // A queue-pressure loop gently increases consumption if the buffer
+      // grows, or slows it if the next chunk risks a gap. Without this,
+      // an underrun/dropped chunk repeats even with 120ms prebuffer.
+      var lead = Math.max(0, (Number(state.nextTime)||0) - state.context.currentTime);
+      var correction = Math.max(-0.12, Math.min(0.18,
+        (lead - state.targetLead) * 1.6));
+      var current = adaptiveAudioEnabled
+        ? Math.max(0.55, Math.min(1, nominal + correction)) : 1;
+      state.playbackRateScale = current;
+      try {
+        return originalSubmit.call(state, ptr, len);
+      } finally {
+        state.playbackRateScale = nominal;
+      }
+    };
+    state._fishAudioStabilized = true;
+    log('Áudio sincronizado: reserva '+Math.round(state.targetLead*1000)+' ms');
+  }
   var perfStateNode = document.getElementById('perfState');
   var audioLastFrames = null, audioLastTime = null;
   adaptiveAudioButton.addEventListener('click', function() {
@@ -478,6 +515,7 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
       var target = adaptiveAudioEnabled ? Math.max(0.45,Math.min(1,fps/59.94)) : 1;
       var audioState = Module.psxWebAudio;
       if (audioState) {
+        stabilizeFishAudio(audioState);
         var prev = Number(audioState.playbackRateScale) || 1;
         audioState.playbackRateScale = adaptiveAudioEnabled ? prev*0.3 + target*0.7 : 1;
       }

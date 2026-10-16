@@ -124,3 +124,7 @@ O serviço Docker `fish-web` monta a edição PT-BR v2 de `private/ptbr/live-dis
 O launcher atual usa **WebGL2 para apresentar os quadros** da execução MIPS recompilada em WebAssembly. O caminho alternativo de software continua disponível pelo botão **Gráficos** no próprio player, que reinicia em modo compatível. A tradução nativa PT-BR do BIN continua a mesma. No Chromium de teste, a velocidade passou de aproximadamente 26–29 para 48 ciclos/s nos menus e atingiu ~54,5 ciclos/s na seleção do lago (não é garantia de 60 em toda máquina). Veja [diagnóstico e instruções para reconstrução](docs/PERFORMANCE_WEBGL.md).
 
 As atualizações do renderizador são código aberto em `patches/fish-webgl-performance.patch`; a build WASM e os dados do jogo continuam gerados/armazenados apenas na infraestrutura autorizada do usuário.
+
+## Sincronização de áudio no navegador
+
+O player agora inicia com Som adaptativo ativado e controla a reserva Web Audio (120 ms, pelo menos 160 ms no Windows) usando o nível da fila para reduzir cortes sem parar o jogo. O usuário pode desativar o modo pelo botão do player, voltando à taxa/pitch originais, mas isso pode produzir mais interrupções quando a emulação estiver abaixo da velocidade real. O teste isolado registrou 0 interrupções e 0 descartes em 18 segundos no modo estável, contra 31 interrupções no modo original no mesmo navegador. Há um compromisso: áudio adaptativo pode soar mais grave quando o motor está lento. Consulte [diagnóstico de áudio](docs/AUDIO_WEB_STABILITY.md).

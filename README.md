@@ -112,3 +112,9 @@ Regression smoke tests: `tests/launcher-smoke.cjs` and `tests/launcher-game-boot
 ## Tradução PT-BR nativa (ROM Hacking)
 
 Uma primeira versão PT-BR real altera o executável PS1 e as texturas TIM dentro de FISHING.DAT, regenerando EDC/ECC. Foram verificadas 21 strings e os cabeçalhos/opções de MODE SELECT no Chromium, sem overlays. A tradução ainda é parcial. Consulte [instruções para gerar o BIN/CUE traduzido com seu disco](docs/PTBR_NATIVE_PATCH.md).
+
+### Site ativo com a edição PT-BR v2
+
+O serviço Docker `fish-web` monta a edição PT-BR v2 de `private/ptbr/live-disc` (somente leitura) para servir o jogo na implementação local. O disco original fica preservado em `private/original-disc`. O arquivo `.bin` em `private/ptbr/live-disc` é uma cópia privada do resultado de `tools/translate_fish_ptbr.py` e `tools/patch_fish_tim_ptbr.py`; é propositalmente excluído do repositório. SHA-1 da edição PT-BR v2: `1442f14c813858d95fe31f36ddf1a34873d5c528`.
+
+**Distribuição:** a rota `/game-data/disc.bin` permite baixar o jogo inteiro. Não hospede esse endpoint publicamente sem autorização dos titulares.

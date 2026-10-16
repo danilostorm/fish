@@ -1,6 +1,6 @@
 # Real PS1 -> Browser recompilation roadmap
 
-**Current state: disc validation and private EXE/seed extraction work; web gameplay is not operational.**
+**Current state: main EXE recompiled, Emscripten WebAssembly built, browser loads OpenBIOS; game menu/gameplay not confirmed.**
 
 ## Measured baseline (2026-10-16)
 
@@ -8,16 +8,18 @@
 - Extracted 727,040-byte PS-X EXE with valid header; text length 0xB1000.
 - MIPS direct JAL scan yielded 1,087 distinct in-range targets (including entry PC).
 - `FISHING.DAT` is a 74,668,032-byte filesystem object and likely relevant to streaming. Dynamic code/asset organization not yet reverse-engineered.
-- Existing AEROCOOL projects RepsiMan and NASCAR Rumble contain examples of PSXRecomp native-to-wasm adaptation. They are **references**, not evidence this game already works.
+- PSXRecomp emitted 2,317 MIPS-to-C functions (1,741,196 source lines) and dispatch code.
+- Emscripten 4.0.23 linked a 14,186,692-byte WASM with JavaScript glue, exit 0.
+- Chromium browser loaded the user's local CUE/BIN, extracted the PS-X executable, started OpenBIOS at PC `0xBFC00000` and drew a BIOS cube animation, followed by gray/black screens. No menu or gameplay yet; no JavaScript page errors were observed.
 
 ## Milestones and measurable pass criteria
 
 1. **Disc audit — DONE.** ISO9660, boot file, addresses, SHA-1, extraction and JAL discovery.
-2. **Native code generation — PENDING.** Build RetroPortingToolKit/psxrecomp and run on the private EXE; log count of emitted functions, rejects and unresolved jump tables. Capture dynamic overlays from FISHING.DAT.
-3. **Native boot baseline — PENDING.** Boot to first rendered frame then main menu with functional audio and controller; record frame/stack trace and CD reads.
-4. **Emscripten integration — PENDING.** Adapt C/C++ recompiled entrypoints, PS1 memory/MMIO, cooperative fibers/ucontext or Asyncify, CD-ROM loading and overlay execution to browser restrictions. On the web it may be necessary to precompile all observed overlays and use an interpreter fallback for unobserved code; arbitrary dynamic native libraries are not usable.
-5. **Browser services — PENDING.** WebGL2/WebGPU for GPU, WebAudio, Gamepad API, keyboard/touch overlay, IndexedDB persistent memory card, streaming disc content, service worker.
-6. **Real browser QA — PENDING.** First frame, main menu, fishing gameplay, saves, music, controller, mobile/TV input; compare against a reference PS1 run.
+2. **Static code generation — COMPLETE (main EXE).** 2,317 functions generated. The streaming/overlay content of FISHING.DAT remains unverified.
+3. **Game correctness — PENDING.** Trace transition from OpenBIOS to the game, CD-ROM I/O, overlays and the first menu.
+4. **Emscripten integration — PARTIAL.** Built real WASM and launched BIOS. Game execution and overlay handling remain unconfirmed.
+5. **Browser services — PARTIAL.** Local CUE/BIN picker, ISO9660 extraction, WebAssembly renderer and COOP/COEP nginx included. Input, in-game sound, save persistence, streamed loading and touch are pending verification.
+6. **Real browser QA — PARTIAL.** 65-second Chromium runtime test completed with BIOS animation and black screen. Gameplay remains unverified.
 
 ## Constraints
 

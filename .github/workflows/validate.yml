@@ -1,0 +1,22 @@
+name: Validate Fisherman's Bait 2 tooling
+on:
+  push:
+    paths:
+      - "tools/**"
+      - "tests/**"
+      - ".github/workflows/validate.yml"
+  pull_request:
+    paths:
+      - "tools/**"
+      - "tests/**"
+      - ".github/workflows/validate.yml"
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run synthetic PS1 ISO9660 tests
+        run: python -m unittest discover -s tests -v

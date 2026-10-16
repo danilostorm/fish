@@ -1,0 +1,36 @@
+# Native PSXRecomp baseline configuration — NOT a browser build.
+# The private paths below are intentionally not checked in.
+# Prepare them with: python3 tools/disc_probe.py <your-disc.cue> --private-out private
+[game]
+name = "Fisherman's Bait 2: Big Ol' Bass"
+id = "SLUS-00999"
+exe = "private/SLUS_009.99"
+disc = "private/disc.cue"
+load_address = "0x80010000"
+entry_pc = "0x8009A7C8"
+text_size = "0x000B1000"
+stack_base = "0x801FFFF0"
+
+[recompiler]
+seeds = "private/seeds.txt"
+strict = true
+out_dir = "generated"
+
+[runtime]
+window_title = "Fisherman's Bait 2 Recompiled"
+memcard_dir = "saves"
+disc_speed = "1x"
+bios_hle = false
+fast_boot = false
+overlay_cache = true
+overlay_backend = "auto"
+
+[video]
+renderer = "software"
+supersampling = 1
+texture_filtering = "nearest"
+aspect_ratio = "4:3"
+
+[controller]
+default_analog = false
+deadzone = 12000

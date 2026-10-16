@@ -127,6 +127,10 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
 @media(max-width:520px){.identity{font-size:19px}.top-inner{gap:8px}.top-actions .iconbtn:first-child{display:none}.hero-content{padding-top:190px;min-height:540px}.fish-art{width:120%;right:-40%;top:-115px}.hero-copy .tagline{font-size:15px}.cta,.outline{padding:11px 12px;font-size:13px;min-height:43px}.big-logo{max-height:125px}.feature-stack{display:grid;grid-template-columns:repeat(2,1fr)}.feature{min-width:0}.mode-grid{gap:8px}.mode{min-height:115px}.mode-info{left:9px;bottom:10px;gap:5px}.mode-icon{font-size:20px}.mode strong{font-size:13px}.mode small{font-size:10px}.mode .arrow{display:none}.panel{padding:11px}.gallery-layout{height:clamp(200px,58vw,265px)}.gallery-layout{grid-template-columns:minmax(0,1fr) 65px}.progress-panel .progress-list{display:block}.progress-list .progress-stat{border-left:0;border-top:1px solid #194569}.game-overlay{padding:4px}.gamebar-title img{width:110px}.gamebar-controls button{padding:8px;font-size:11px}.game-status{max-height:88px;padding:6px}.gamebar-title .runtime-badge{display:none}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 </style>
+<style>
+#fishFastCanvas {position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(100%,calc((100vh - 116px)*4/3));max-height:calc(100vh - 116px);aspect-ratio:4/3;image-rendering:pixelated;z-index:2;object-fit:contain}
+@media(max-width:820px){#fishFastCanvas{max-height:58vh;width:100%}}
+</style>
 </head>
 <body>
 <header class="topbar">
@@ -235,6 +239,7 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     <div class="gamebar-controls">
       <button id="enableAudio" type="button">🔊 Ativar som</button>
       <button id="adaptiveAudio" type="button">Som adaptativo: desativado</button>
+      <button id="rendererMode" type="button">Gráficos: preparando</button>
       <button id="reload" type="button">↻ Reiniciar</button>
       <button id="fullscreen" type="button">⛶ Tela cheia</button>
       <button id="closeGame" type="button">✕ Sair do jogo</button>
@@ -242,7 +247,7 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
   </div>
   <div class="game-shell">
     <div class="game-display">
-      <canvas id="canvas" width="640" height="480" tabindex="0" aria-label="Tela do PlayStation recompilado"></canvas>
+      <canvas id="canvas" width="640" height="480" tabindex="0" aria-label="Tela do PlayStation recompilado"></canvas><canvas id="fishFastCanvas" width="640" height="480" aria-hidden="true" style="visibility:hidden;pointer-events:none"></canvas>
     </div>
     <aside class="game-status">
       <strong>STATUS DO SISTEMA</strong>
@@ -286,16 +291,87 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     console.info('[FISH]',str);
   }
   function setStatus(s) { statusNode.textContent = s; }
+  function compatibilityUrl() {
+    var url=new URL(window.location.href);
+    url.searchParams.set('video','compat');
+    return url.href;
+  }
+  function graphicsCompatSelected() {
+    return new URLSearchParams(window.location.search).get('video')==='compat';
+  }
+  // Fish experimental main-thread WebGL2 presenter (without SDL GL contexts).
+  function initFastRenderer() {
+    var canvasFast=document.getElementById('fishFastCanvas');
+    if (!canvasFast || graphicsCompatSelected()) return false;
+    var gl=canvasFast.getContext('webgl2',{alpha:false,antialias:false,depth:false,stencil:false,preserveDrawingBuffer:true,powerPreference:'high-performance'});
+    if(!gl) {log('WebGL2 unavailable; using software renderer');return false;}
+    function disableFastGraphics(reason) {
+      if (Module.fishWebPresenter && Module.fishWebPresenter.failed) return;
+      if (Module.fishWebPresenter) Module.fishWebPresenter.failed=true;
+      log('Falha no modo gráfico rápido: '+reason+'. Reiniciando em modo compatível.');
+      setStatus('Reiniciando em modo gráfico compatível…');
+      window.location.replace(compatibilityUrl());
+    }
+    function shader(type,src) {
+      var sh=gl.createShader(type);gl.shaderSource(sh,src);gl.compileShader(sh);
+      if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS)) throw Error(gl.getShaderInfoLog(sh));
+      return sh;
+    }
+    try {
+      var vs=shader(gl.VERTEX_SHADER,'#version 300 es\nout vec2 uv;\nvoid main(){\nvec2 p=vec2((gl_VertexID==1)?3.0:-1.0,(gl_VertexID==2)?3.0:-1.0);\ngl_Position=vec4(p,0.0,1.0);uv=(p+1.0)*0.5;\n}');
+      var fs=shader(gl.FRAGMENT_SHADER,'#version 300 es\nprecision mediump float;\nin vec2 uv;\nuniform sampler2D tex;\nout vec4 color;\nvoid main(){\nvec4 c=texture(tex,vec2(uv.x,1.0-uv.y));\ncolor=vec4(c.b,c.g,c.r,1.0);\n}');
+      var program=gl.createProgram();gl.attachShader(program,vs);gl.attachShader(program,fs);
+      gl.linkProgram(program);
+      if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));
+      gl.useProgram(program);
+      var tex=gl.createTexture();gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,tex);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+      gl.uniform1i(gl.getUniformLocation(program,'tex'),0);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
+      gl.bindVertexArray(gl.createVertexArray());
+      var lastW=0,lastH=0;
+      var state={draws:0,lastWidth:0,lastHeight:0,draw:function(buffer,w,h){
+         if(!w||!h||buffer.length!==w*h*4)return;
+         if(gl.isContextLost()){disableFastGraphics('contexto gráfico indisponível');return;}
+         try {
+         if(lastW!==w||lastH!==h){
+           canvasFast.width=w;canvasFast.height=h;gl.viewport(0,0,w,h);
+           lastW=w;lastH=h;
+           gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,buffer);
+         } else gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,buffer);
+         gl.drawArrays(gl.TRIANGLES,0,3);
+         if(state.draws===0) canvasFast.style.visibility='visible';
+         state.draws++;state.lastWidth=w;state.lastHeight=h;
+         if ((state.draws % 120) === 0 && gl.getError() !== gl.NO_ERROR) throw Error('erro WebGL2');
+         } catch(err) {disableFastGraphics(err.message);}
+      }};
+      canvasFast.addEventListener('webglcontextlost',function(e){
+        e.preventDefault();disableFastGraphics('contexto WebGL2 perdido');
+      });
+      Module.fishWebPresenter=state;
+      return true;
+    } catch(err) {log('WebGL2 initialization failed: '+err.message);return false;}
+  }
   var Module = window.Module = {
     canvas: canvas,
     noInitialRun: true,
     print: function() {log(Array.from(arguments).join(' '));},
     printErr: function() {log(Array.from(arguments).join(' '));},
     setStatus: setStatus,
-    onRuntimeInitialized: function() { runtimeReady = true; setStatus('Runtime pronto. Carregando o disco automaticamente…'); if (!overlay.hidden) setTimeout(autostart, 0); },
+    onRuntimeInitialized: function() { runtimeReady = true; if(typeof Module._fish_web_set_direct_present=== "function" && initFastRenderer()){Module._fish_web_set_direct_present(1);document.getElementById("rendererMode").textContent="Gráficos: rápidos ↻";log("Renderização WebGL2 ativada");} else {document.getElementById("rendererMode").textContent="Gráficos: compatíveis ↻";} setStatus('Runtime pronto. Carregando o disco automaticamente…'); if (!overlay.hidden) setTimeout(autostart, 0); },
     onAbort: function(reason) {setStatus('Runtime interrompido. Consulte o log.'); log('ABORT: ' + reason);}
   };
   reloadButton.addEventListener('click', function() { window.location.reload(); });
+  document.getElementById('rendererMode').addEventListener('click',function(){
+    var url=new URL(window.location.href);
+    if(graphicsCompatSelected()) url.searchParams.delete('video');
+    else url.searchParams.set('video','compat');
+    window.location.assign(url.href); // Restart renderer safely; avoid black frames.
+  });
+
   var overlay = document.getElementById('gameOverlay');
   var focusBefore = null;
   function showGame() {

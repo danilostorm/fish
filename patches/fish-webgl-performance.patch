@@ -1,0 +1,159 @@
+--- a/runtime/src/main.cpp
++++ b/runtime/src/main.cpp
+@@ -301,6 +301,44 @@
+ 
+ static std::atomic<uint64_t> g_web_perf_pacer_wait_us{0};
+ static std::atomic<uint64_t> g_web_perf_present_us{0};
++static std::atomic<uint64_t> g_fish_perf_render_us{0};
++static std::atomic<uint64_t> g_fish_perf_render_frames{0};
++static std::atomic<uint64_t> g_fish_perf_skipped_frames{0};
++static std::atomic<uint32_t> g_fish_web_render_interval{1};
++static std::atomic<int> g_fish_web_direct_present{0};
++extern "C" EMSCRIPTEN_KEEPALIVE void fish_web_set_direct_present(int enabled) {
++    g_fish_web_direct_present.store(enabled ? 1 : 0, std::memory_order_release);
++}
++
++extern "C" EMSCRIPTEN_KEEPALIVE void fish_web_set_render_interval(uint32_t frames) {
++    g_fish_web_render_interval.store(frames >= 1 && frames <= 4 ? frames : 1,
++                                      std::memory_order_release);
++}
++extern "C" EMSCRIPTEN_KEEPALIVE double fish_web_perf_render_us(void) {
++    return (double)g_fish_perf_render_us.load(std::memory_order_relaxed);
++}
++extern "C" EMSCRIPTEN_KEEPALIVE double fish_web_perf_render_frames(void) {
++    return (double)g_fish_perf_render_frames.load(std::memory_order_relaxed);
++}
++extern "C" EMSCRIPTEN_KEEPALIVE double fish_web_perf_skipped_frames(void) {
++    return (double)g_fish_perf_skipped_frames.load(std::memory_order_relaxed);
++}
++/* Only browser copies are instrumented; C++ RAII handles every early return
++ * in the software-present path (blank frames and skipped 24-bit frames). */
++struct FishWebRenderTimer {
++    Uint64 start;
++    FishWebRenderTimer() : start(SDL_GetPerformanceCounter()) {}
++    ~FishWebRenderTimer() {
++        Uint64 end=SDL_GetPerformanceCounter();
++        Uint64 freq=SDL_GetPerformanceFrequency();
++        if (end>=start && freq) {
++            g_fish_perf_render_us.fetch_add(
++                ((end-start)*1000000u)/freq, std::memory_order_relaxed);
++            g_fish_perf_render_frames.fetch_add(1, std::memory_order_relaxed);
++        }
++    }
++};
++
+ #endif
+ 
+ struct Smooth60State {
+@@ -2804,6 +2842,19 @@
+ #endif
+ 
+     if (g_headless) return;
++#if defined(PSX_WEB)
++    /* Guest input, audio mixing and clock all ran above. This opt-in
++     * optimization skips only image conversion/upload for non-display vblanks.
++     * Never speed up simulation or tamper with SIO/CD/translated game data. */
++    uint32_t render_interval = g_fish_web_render_interval.load(
++        std::memory_order_relaxed);
++    if (render_interval > 1 &&
++        (g_web_perf_vblanks.load(std::memory_order_relaxed) % render_interval) != 0) {
++        g_fish_perf_skipped_frames.fetch_add(1, std::memory_order_relaxed);
++        return;
++    }
++    FishWebRenderTimer fish_web_render_timer;
++#endif
+ 
+     /* TCP turbo is for automated validation and trace capture. It keeps the
+      * simulation advancing and the debug server polling, but removes frontend
+@@ -3090,11 +3141,8 @@
+                                         (int)di.display_x, (int)di.display_y,
+                                         (int)present_w, (int)h);
+             } else {
+-                for (uint32_t y = 0; y < h; y++) {
+-                    for (uint32_t x = 0; x < present_w; x++) {
+-                        sdl_pixel_buf[y * present_w + x] = gpu_display_pixel_argb(&di, x, y);
+-                    }
+-                }
++                gpu_display_to_argb_fast(&di, sdl_pixel_buf, present_w,
++                                          present_w, h);
+             }
+         }
+ 
+@@ -3157,6 +3205,28 @@
+ #ifndef PSX_SDL_NO_RENDER
+     int src_w = (int)present_w * active_scale;
+     int src_h = (int)h * active_scale;
++#if defined(PSX_WEB)
++    if (g_fish_web_direct_present.load(std::memory_order_acquire)
++        && !g_gl_active && !g_vk_active && src_w > 0 && src_h > 0) {
++        /* Software VRAM conversion is already complete. Submit the ARGB
++         * pixel buffer directly to a separate WebGL2 canvas on the browser
++         * main thread, avoiding Emscripten SDL's expensive software
++         * UpdateTexture/RenderCopy/Present path. Rendering is async and
++         * never blocks CPU emulation. If WebGL2 init fails, JS does not
++         * enable this path and SDL remains the safe fallback. */
++        MAIN_THREAD_ASYNC_EM_ASM({
++            try {
++                growMemViews();
++                var presenter = Module.fishWebPresenter;
++                if (presenter && presenter.draw)
++                    presenter.draw(HEAPU8.subarray($0, $0 + $1*$2*4), $1, $2);
++            } catch (e) {
++                console.error("Fish WebGL direct present", e);
++            }
++        }, sdl_pixel_buf, src_w, src_h);
++        return;
++    }
++#endif
+     if (g_gl_active) {
+         /* OpenGL present: upload the active display rect and draw a full-screen
+          * quad. SDL_GL_SwapWindow handles vsync; the wall-clock pacer above
+--- a/runtime/src/gpu.c
++++ b/runtime/src/gpu.c
+@@ -1972,6 +1972,35 @@
+     return 0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
+ }
+ 
++/* Scan out a whole PS1 frame in one pass. Calling gpu_display_pixel_argb
++ * individually from another translation unit blocks compiler inlining and
++ * repeats screen-kind and scan-address work tens of thousands of times.
++ * The raw 5->8 conversion below is bit-identical to gpu_rgb555_to_rgb888.
++ * Custom color LUTs and 24-bit packed FMV retain the original conversion. */
++void gpu_display_to_argb_fast(const GpuDisplayInfo* di, uint32_t* dst,
++                              uint32_t pitch_px, uint32_t width, uint32_t height) {
++    if (!di || !dst) return;
++    screen_lut_ensure();
++    if (di->depth24 || s_screen_lut) {
++        for (uint32_t y = 0; y < height; ++y)
++            for (uint32_t x = 0; x < width; ++x)
++                dst[y*pitch_px+x] = gpu_display_pixel_argb(di,x,y);
++        return;
++    }
++    const uint16_t* base = gpu_get_vram();
++    const uint32_t x0 = di->display_x & 1023u;
++    const uint32_t y0 = di->display_y & 511u;
++    for (uint32_t y=0; y<height; ++y) {
++        const uint16_t* row = base + (((y0+y)&511u) * 1024u);
++        uint32_t* out = dst+y*pitch_px;
++        for (uint32_t x=0; x<width; ++x) {
++            uint32_t v = row[(x0+x)&1023u];
++            out[x] = 0xFF000000u | ((v&31u)<<19u) |
++                     (((v>>5u)&31u)<<11u) | (((v>>10u)&31u)<<3u);
++        }
++    }
++}
++
+ void gpu_get_display_info(GpuDisplayInfo* out) {
+     out->display_x = display_area_x;
+     out->display_y = display_area_y;
+--- a/runtime/include/gpu.h
++++ b/runtime/include/gpu.h
+@@ -35,6 +35,8 @@
+ void gpu_display_pixel_rgb(const GpuDisplayInfo* di, uint32_t x, uint32_t y,
+                            uint8_t* r, uint8_t* g, uint8_t* b);
+ uint32_t gpu_display_pixel_argb(const GpuDisplayInfo* di, uint32_t x, uint32_t y);
++/* Optimized scanout: exact 15-bit raw pixel conversion for software Web builds. */
++void gpu_display_to_argb_fast(const GpuDisplayInfo* di, uint32_t* dst, uint32_t pitch_px, uint32_t width, uint32_t height);
+ uint64_t gpu_get_gp0_count(void);  /* Total GP0 writes since init */
+ void gpu_get_gp0_stats(uint64_t* nop, uint64_t* fill, uint64_t* draw, uint64_t* env, uint64_t* copy);
+ 

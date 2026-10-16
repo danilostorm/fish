@@ -32,15 +32,16 @@ pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:aut
   <div class="layout">
     <section class="player">
       <canvas id="canvas" width="640" height="480" tabindex="0" aria-label="Tela do jogo"></canvas>
-      <div class="bar"><span id="status">Carregando o runtime WebAssembly…</span><span id="fileStatus"></span></div>
+      <div class="bar"><span id="status">Carregando o runtime WebAssembly…</span><span id="fileStatus"></span><span id="perfState"></span></div>
     </section>
     <aside class="side">
       <h2>Pronto para jogar</h2>
       <p class="note">O jogo será carregado automaticamente do servidor local. Não é necessário selecionar o disco ou apertar Iniciar no site.</p>
       <button id="enableAudio">Ativar som e focar controles</button>
+      <button class="secondary" id="adaptiveAudio">Som adaptativo: desativado</button>
       <button class="secondary" id="reload">Reiniciar jogo</button>
       <button class="secondary" id="fullscreen">Tela cheia</button>
-      <p class="note">Clique no botão "Ativar som e focar controles" depois de carregar. Teclado: setas para mover; Enter = START; X = botão X do PS1; S = círculo; Z = quadrado; A = triângulo. Controle USB/Bluetooth pela Gamepad API. Se não houver som, clique na tela do jogo para ativar o áudio. Versão experimental: Start, GAME e MODE SELECT funcionando; áudio ainda em otimização, com cortes possíveis. O carregamento pode levar um minuto ou mais, conforme sua conexão e dispositivo.</p>
+      <p class="note">Clique no botão "Ativar som e focar controles" depois de carregar. Teclado: setas para mover; Enter = START; X = botão X do PS1; S = círculo; Z = quadrado; A = triângulo. Controle USB/Bluetooth pela Gamepad API. Se não houver som, clique na tela do jogo para ativar o áudio. Versão experimental: Start, GAME e MODE SELECT funcionando; áudio ainda em otimização; o som adaptativo reduz cortes quando a emulação está lenta, mas pode alterar a altura da voz e da música. O carregamento pode levar um minuto ou mais, conforme sua conexão e dispositivo.</p>
     </aside>
   </div>
   <pre id="log" aria-label="Log de diagnóstico"></pre>
@@ -92,6 +93,33 @@ pre{margin-top:20px;font-size:11px;line-height:1.4;max-height:180px;overflow:aut
     }
   }
   audioButton.addEventListener('click', enableSound);
+  var adaptiveAudioButton = document.getElementById('adaptiveAudio');
+  var adaptiveAudioEnabled = false;
+  var perfStateNode = document.getElementById('perfState');
+  var audioLastFrames = null, audioLastTime = null;
+  adaptiveAudioButton.addEventListener('click', function() {
+    adaptiveAudioEnabled = !adaptiveAudioEnabled;
+    adaptiveAudioButton.textContent = 'Som adaptativo: ' + (adaptiveAudioEnabled ? 'ativado' : 'desativado');
+    if (Module.psxWebAudio) Module.psxWebAudio.playbackRateScale = 1;
+    void enableSound();
+  });
+  setInterval(function() {
+    if (!started || typeof Module._psx_web_perf_vblanks !== 'function') return;
+    var now = performance.now(), frames = Module._psx_web_perf_vblanks();
+    if (audioLastFrames !== null) {
+      var fps = (frames - audioLastFrames) * 1000 / Math.max(1, now - audioLastTime);
+      var target = adaptiveAudioEnabled ? Math.max(0.45,Math.min(1,fps/59.94)) : 1;
+      var audioState = Module.psxWebAudio;
+      if (audioState) {
+        var prev = Number(audioState.playbackRateScale) || 1;
+        audioState.playbackRateScale = adaptiveAudioEnabled ? prev*0.3 + target*0.7 : 1;
+      }
+      perfStateNode.textContent = fps.toFixed(0) + ' ciclos/s' +
+        (adaptiveAudioEnabled ? ' · áudio adaptativo ' + Math.round(target*100) + '%' : '');
+    }
+    audioLastFrames = frames; audioLastTime = now;
+  }, 2000);
+
   canvas.addEventListener('pointerdown', function() {
     canvas.focus({preventScroll:true});
     void enableSound();

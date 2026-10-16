@@ -88,3 +88,11 @@ The public Git repository excludes original game BIN/CUE, executables and assets
 - WebAssembly rebuilt on AEROCOOL with Emscripten 4.0.23 and `-DPSX_LAUNCHER=OFF` (the native RmlUi launcher is not usable with the browser GL profile). `scripts/package-web.sh` uses `build-web-input` by default; override via `FISH_BUILD_DIR` only when deliberately changing builds.
 
 This LAN preview automatically serves the locally owned disc. The public site configuration should not expose those two game-data endpoints without appropriate redistribution rights.
+
+### Optional adaptive browser audio
+
+The `Som adaptativo` button is **OFF by default**. When enabled, the web launcher measures actual guest vblanks/sec every two seconds and communicates a 0.45–1.0 playback-rate scale to the Web Audio bridge. The bridge adjusts both audio source playback rate and its scheduling duration, so slower emulation can avoid some silent gaps. **This lowers pitch and does not fix slow gameplay.**
+
+A controlled Chromium run of approximately 72 seconds on AEROCOOL measured 627 audio underruns at 32.34 vblanks/sec without adaptation, versus 197 underruns at 33.42 vblanks/sec with the option active and a playback rate around 0.534. The Start and Cross menu transitions were preserved. This is a substantial reduction, not a guarantee of acceptable sound on all clients.
+
+The isolated runtime changes are stored in two portable source patches: `patches/fish-web-input.patch` and `patches/fish-web-audio-adaptive.patch`. Apply both only to a private compatible checkout of RetroPortingToolKit/psxrecomp, build using Emscripten 4.0.23 with `-DPSX_LAUNCHER=OFF`, and package with `scripts/package-web.sh`. Never apply game-specific patches to other PS1 web projects without review.

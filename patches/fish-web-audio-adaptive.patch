@@ -1,0 +1,24 @@
+--- a/runtime/src/web_audio_bridge.c
++++ b/runtime/src/web_audio_bridge.c
+@@ -102,6 +102,12 @@
+             }
+             var source = state.context.createBufferSource();
+             source.buffer = buffer;
++            /* Optional pitch-lowered time stretch. Browser sets playbackRateScale
++             * to measured vblanks/sec divided by the original 59.94 Hz.
++             * At normal speed the bridge behaves identically to upstream. */
++            var rate = Number(state.playbackRateScale);
++            rate = Number.isFinite(rate) ? Math.max(0.45, Math.min(1.0, rate)) : 1.0;
++            source.playbackRate.value = rate;
+             source.connect(state.output || state.context.destination);
+             var start;
+             if (!state.started) {
+@@ -118,7 +124,7 @@
+                 start = state.nextTime;
+             }
+             source.start(start);
+-            state.nextTime = start + frames / 44100.0;
++            state.nextTime = start + frames / (44100.0 * rate);
+             state.sources.add(source);
+             source.onended = function() { state.sources.delete(source); };
+         };

@@ -155,6 +155,10 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
 .padcfg-preview p{position:absolute;bottom:4px;left:12px;font-size:10px;color:#8ccfe4;margin:0}
 .padcfg-preview .padcfg-state{right:12px;left:auto;color:#52f4c2}
 .padcfg h3{margin:10px 0;font-size:14px}
+.padcfg-mode-actions{margin:11px 0;padding:10px;border:1px solid #1a73a3;border-radius:10px;background:#031b31;display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.padcfg-mode-actions button{padding:9px 12px;border:1px solid #269ccb;border-radius:9px;background:#07537b;color:white;font-size:12px;font-weight:800}
+.padcfg-mode-actions button:disabled{opacity:.4}
+.padcfg-mode-actions p{flex:1 1 220px;font-size:11px;color:#c2eaff;margin:0;line-height:1.5}
 .padcfg-hint{color:#b6e0ee;font-size:11px;line-height:1.6;margin:14px 0}
 .padcfg-actions{display:flex;justify-content:space-between;gap:12px}
 .padcfg-actions button{padding:11px 15px;border-radius:9px;border:1px solid #20a6df;background:#054375;color:white;font-weight:800}
@@ -287,7 +291,7 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
       <span id="status" role="status">Carregando o runtime WebAssembly…</span>
       <span id="fileStatus" class="meta">Preparando jogo…</span>
       <span id="perfState" class="meta"></span>
-      <span id="padModeState" class="meta">🎮 Entrada: preparando…>🎮 Analógico: configure no menu</span>
+      <span id="padModeState" class="meta">🎮 Entrada: preparando…</span>
       <button id="showControls" type="button">🎮 Ver controles</button>
       <div class="touchbar" aria-label="Controles de toque">
         <button data-touch="ArrowLeft">◀</button><button data-touch="ArrowUp">▲</button><button data-touch="ArrowDown">▼</button><button data-touch="ArrowRight">▶</button>
@@ -314,7 +318,7 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     <div class="padcfg-device"><span class="padcfg-light"></span><span id="padStatusLive">Conecte um controle USB/Bluetooth e pressione um botão</span></div>
     <div class="padcfg-fields">
       <label>Controle detectado<select id="padDevice"><option value="-1">Automático</option></select></label>
-      <label>Modo do PlayStation<select id="padMode"><option value="1">DualShock analógico (recomendado)</option><option value="2">Híbrido (automático)</option><option value="0">Digital</option></select></label>
+      <label>Modo do PlayStation<select id="padMode"><option value="2">Automático estável (recomendado)</option><option value="1">Analógico fixo (pode bloquear START)</option><option value="0">Digital fixo (menus)</option></select></label>
       <label>Stick esquerdo (mover vara)<select id="padLeftAxis"><option value="0">Eixos 0 / 1 (padrão)</option><option value="2">Eixos 2 / 3</option><option value="4">Eixos 4 / 5</option></select></label>
       <label>Stick direito (recolher linha)<select id="padRightAxis"><option value="2">Eixos 2 / 3 (padrão)</option><option value="4">Eixos 4 / 5</option><option value="0">Eixos 0 / 1</option></select></label>
       <label class="padcfg-range">Zona morta <span id="padDeadzoneValue">13%</span><input id="padDeadzone" type="range" min="0" max="40" step="1" value="13"/></label>
@@ -325,6 +329,11 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     <div class="padcfg-preview"><div class="pad-stick-view"><strong>Analógico esquerdo</strong><div class="pad-stick-ring"><i id="padDotLeft"></i></div></div>
       <div class="pad-stick-view"><strong>Analógico direito</strong><div class="pad-stick-ring"><i id="padDotRight"></i></div></div>
       <p id="padAxesLive">E: 128 / 128 • D: 128 / 128</p><p id="padAnalogLive" class="padcfg-state">Aguardando jogo</p></div>
+    <div class="padcfg-mode-actions">
+      <button type="button" id="padDigitalReset">↩ Voltar para digital (menus)</button>
+      <p>Modo automático: inicia digital e ativa o analógico após usar a manivela. Não alterna sozinho durante a pescaria.</p>
+      <p id="padActiveButtons" aria-live="off">Botões pressionados: nenhum</p>
+    </div>
     <h3>Mapear botões do controle</h3>
     <div class="padcfg-map">
       <label>Confirmar / ✕<select id="map-cross"></select></label>

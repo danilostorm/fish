@@ -43,3 +43,16 @@ O patch se aplica ao runtime **já contendo** os patches anteriores. No ambiente
 A primeira versão exibia `\n` literalmente no HTML porque uma edição inseriu separadores escapados entre elementos. Esses três marcadores foram substituídos por quebras de linha reais.
 
 Foi comprovado em Chromium que START chega como bit ativo-baixo `0xFFF7` ao circuito PS1, mas a tela inicial não avançava com ID 0x73; ao mudar para ID 0x41, a tela avançou. O modo Automático inicia em digital e ativa o DualShock analógico ao movimentar o joystick direito ou segurar C. Além disso, o runtime deixou o navegador ser a fonte autoritativa de botões: mesclar com um estado SDL antigo mantinha teclas pressionadas após keyup.
+
+## Atualização: controle Xbox 360 sem alternância de modo (17/10/2026)
+
+O usuário confirmou detecção de gamepad Xbox 360, mas houve trocas rápidas entre IDs SIO do controle digital (0x41) e analógico (0x73). Corrigido o automode do launcher:
+
+- No início, o controle fica no modo digital para Start, menus e direcional.
+- Apenas movimento **deliberado do analógico direito** por 300 ms (raio ≥ 0,42) ou manivela explícita (C/R3 configurado) ativa o DualShock analógico.
+- Uma vez ativado, o modo permanece analógico após centralizar o stick, usar Start/A/d-pad e durante a pescaria; não volta a digital automaticamente a cada frame.
+- Botão **Voltar para digital (menus)** dentro de Configurar controle permite a troca intencional. Alternativamente, o usuário pode escolher Digital fixo ou Analógico fixo (este último pode não responder a Start na abertura).
+- Preferências anteriores são migradas à chave `hoststorm-fish-controller-v3`, convertendo o antigo modo analógico padrão para Automático estável e preservando eixos/botões configurados.
+- A interface agora exibe botões pressionados, modo estável e os 4 eixos do gamepad.
+
+Testes: 500 frames simulados com ruído, Start, A e d-pad sem trocas; teste Chromium com gamepad virtual, motor WebAssembly e comunicação SIO observou 0 transições durante menus, 1 transição na manivela, nenhuma alternância após Start/d-pad durante o uso analógico e retorno explícito ao digital. O teste físico no Xbox 360 do usuário continua necessário.

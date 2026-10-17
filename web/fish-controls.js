@@ -13,18 +13,26 @@ const names=['A / ✕','B / ◯','X / □','Y / △','LB / L1','RB / R1','LT / L
 const defaults={mode:2,device:-1,deadzone:0.13,axisL:0,axisR:2,invertRY:false,invertLY:false,crank:-1,
   buttons:{cross:0,circle:1,square:2,triangle:3,l1:4,r1:5,l2:6,r2:7,select:8,start:9}};
 var config=JSON.parse(JSON.stringify(defaults));
-var applied={buttons:65535,axes:0x80808080,analog:1};
+var applied={buttons:65535,axes:0x80808080,analog:0};
 var currentPad=null,gameStarted=false,uiInitialized=false,previewAt=0;
-var effectiveMode=0;  // PS1 boots as digital pad; analog engages on actual stick movement.
+// Auto mode: begin digital, latch analog only after intentional RIGHT-stick use.
+ // Do not switch controller IDs on each d-pad/button/axis sample (SIO handshake).
+var effectiveMode=0,analogActivationSince=0,modeSwitches=0,manualDigital=false;
+const STORAGE_V3='hoststorm-fish-controller-v3';
 function load(){
   try{
-    const raw=localStorage.getItem('hoststorm-fish-controller-v2');
-    const data=JSON.parse(raw);
+    const fresh=localStorage.getItem(STORAGE_V3);
+    const legacy=!fresh && localStorage.getItem('hoststorm-fish-controller-v2');
+    const data=JSON.parse(fresh||legacy||'null');
     if(data && typeof data==='object'){
       config={...defaults,...data,buttons:{...defaults.buttons,...data.buttons}};
+      // Version 2 initially set Analog as default; restore reliable START
+      // for users carrying the old setting, preserving their axis mappings.
+      if(legacy && Number(data.mode)===1)config.mode=2;
     }
   }catch(_){}
   validate();
+  effectiveMode=config.mode===1 ? 1 : 0;
 }
 function validate(){
   config.mode=[0,1,2].includes(Number(config.mode))?Number(config.mode):1;
@@ -39,7 +47,7 @@ function validate(){
     config.buttons[key]=(Number.isInteger(val)&&val>=0&&val<16)?val:defaults.buttons[key];
   }
 }
-function save(){validate();try{localStorage.setItem('hoststorm-fish-controller-v2',JSON.stringify(config));}catch(_){}
+function save(){validate();try{localStorage.setItem(STORAGE_V3,JSON.stringify(config));}catch(_){}
 }
 function selectedGamepad(pads) {
  const arr=Array.from(pads||[]).filter(p=>p&&p.connected);
@@ -102,29 +110,56 @@ function sample(pad,pressed,keyboard){
  let packed=((axes[0])|(axes[1]<<8)|(axes[2]<<16)|(axes[3]<<24))>>>0;
  return {word,packed,axes};
 }
+function setEffectiveMode(next){
+ if(effectiveMode!==next){effectiveMode=next;modeSwitches++;}
+}
+function returnToDigital(){
+ // Explicit return to menu mode; holding a stick cannot instantly switch back.
+ analogActivationSince=0;
+ manualDigital=true;
+ setEffectiveMode(0);
+}
+function updateSelectedMode(){
+ analogActivationSince=0;manualDigital=false;
+ setEffectiveMode(config.mode===1?1:0);
+}
 function publish(Module,started,pressed,keyboard){
  gameStarted=started;
  const pad=selectedGamepad(typeof navigator!=='undefined'&&navigator.getGamepads?navigator.getGamepads():[]);
  currentPad=pad;
  const data=sample(pad,pressed,keyboard);
- // The PS1 game does not respond to START at its title screen if the pad
- // reports analog ID 0x73. Boot and menu inputs MUST see digital ID 0x41.
- // Stick movement (including simulated reel via C/R3) switches to 0x73.
- // Keep analog selected once active until a new menu/d-pad input. This avoids
- // rapid type-changes through SIO while holding a joystick.
- const analogLive=config.mode!==0 && (data.axes[0]!==128||data.axes[1]!==128||
-                                      data.axes[2]!==128||data.axes[3]!==128);
- const menuPressed=!!(pressed && [...pressed].some(k=>
-   ['Enter','NumpadEnter','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyX','KeyS'].includes(k))) ||
-   !!(pad && ([9,12,13,14,15].some(i=>pad.buttons?.[i]?.pressed)));
- const reelingLive=data.axes[2]!==128 || data.axes[3]!==128;
- if(config.mode===0) effectiveMode=0;
- else if(menuPressed && !reelingLive) effectiveMode=0;
- else if(analogLive) effectiveMode=1;
- // Even if mode=1 was saved previously, no gamepad and no stick movement
- // remains digital until the keyboard simulates the analog stick (KeyC).
- // No-pad gameplay can always re-enter the menus without a page reload.
- else if(!pad) effectiveMode=0;
+ // The game needs digital ID 0x41 on its title screen, but its fishing
+ // reel requires analog ID 0x73. Changing ID every 16ms upsets the PS1 SIO
+ // handshake and produces apparent random buttons. In AUTO (mode=2), switch
+ // once after a deliberate right-stick movement and remain analog, including
+ // while pressing A/Start, using d-pad, or returning the stick to neutral.
+ const rightX=(data.axes[2]-128)/127, rightY=(data.axes[3]-128)/127;
+ const deliberateRight=(rightX*rightX + rightY*rightY)>=0.42*0.42;
+ const keyboardReel=!!(pressed && pressed.has('KeyC'));
+ const crankReel=!!(pad && config.crank>=0 && pad.buttons[config.crank]?.pressed);
+ const desiredAnalog=config.mode===1?true:config.mode===0?false:
+                      !manualDigital && effectiveMode===1;
+ // Hysteresis: accept real gamepad axis only when held >= 300ms;
+ // keyboard C / mapped crank button is an explicit request.
+ const now=typeof performance!=='undefined'?performance.now():Date.now();
+ if(config.mode!==2) {
+   setEffectiveMode(config.mode===1?1:0);
+   analogActivationSince=0;
+ } else if(manualDigital) {
+   setEffectiveMode(0);
+   if(!deliberateRight && !keyboardReel && !crankReel)manualDigital=false;
+ } else if(desiredAnalog) {
+   setEffectiveMode(1);
+ } else if(keyboardReel || crankReel) {
+   setEffectiveMode(1);
+   analogActivationSince=0;
+ } else if(deliberateRight) {
+   if(!analogActivationSince)analogActivationSince=now;
+   if(now-analogActivationSince>=300)setEffectiveMode(1);
+ } else {
+   analogActivationSince=0;
+   setEffectiveMode(0);
+ }
  applied={buttons:data.word,axes:data.packed,raw:data.axes,analog:effectiveMode};
  if(Module && typeof Module._psx_web_set_pad_mode==='function')
    Module._psx_web_set_pad_mode(effectiveMode);
@@ -145,7 +180,15 @@ function updatePreview(Module){
  set('gamepadStatus',currentPad?'Conectado: '+currentPad.id:'Nenhum gamepad — conecte e pressione um botão');
  const mode=typeof Module?._psx_web_get_pad_analog==='function'?Module._psx_web_get_pad_analog():-1;
  set('padAnalogLive',mode===1?'DualShock analógico ativo (0x73)':mode===0?'Controle digital (0x41)':'Aguardando início do jogo');
- set('padModeState',mode===1?'🎮 Entrada: DualShock analógico ativo':mode===0?'🎮 Entrada: digital (teclado/menus)':'🎮 Entrada: aguardando motor');
+ set('padModeState',mode===1?'🎮 Entrada: analógico estável (pescaria)':mode===0?'🎮 Entrada: digital estável (menus/controle)':'🎮 Entrada: aguardando motor');
+ set('padActiveButtons',currentPad?'Botões pressionados: '+((()=>{
+   const pressed=[];
+   for(let i=0;i<(currentPad.buttons?.length||0);i++)if(currentPad.buttons[i]?.pressed)
+     pressed.push(i+(names[i]?' ('+names[i]+')':''));
+   return pressed.join(', ')||'nenhum';
+ })()):'Botões pressionados: controle não conectado');
+ const resetButton=document.getElementById('padDigitalReset');
+ if(resetButton)resetButton.disabled=(config.mode===0 && effectiveMode===0);
  const el=document.getElementById('padAxesLive');
  if(el && applied.raw)el.textContent='E: '+applied.raw.slice(0,2).join(' / ')+'  •  D: '+applied.raw.slice(2).join(' / ');
  const sticks=[['padDotLeft',applied.raw?.[0],applied.raw?.[1]],['padDotRight',applied.raw?.[2],applied.raw?.[3]]];
@@ -154,7 +197,7 @@ function updatePreview(Module){
    if(dot)dot.style.transform='translate('+(((x??128)-128)/127*35).toFixed(1)+'px,'+(((y??128)-128)/127*35).toFixed(1)+'px)';
  });
  const device=document.getElementById('padDevice');
- if(device && !device.matches(':focus')){
+ if(device && !document.getElementById('padConfigModal')?.hidden && !device.matches(':focus')){
    const padList=Array.from(navigator.getGamepads?.()||[]).filter(Boolean);
    const entries=['<option value="-1">Automático (primeiro controle)</option>'].concat(padList.map(p=>'<option value="'+p.index+'">Porta '+(p.index+1)+' — '+escapeText(p.id)+'</option>'));
    const h=entries.join('');
@@ -184,10 +227,16 @@ function initUI(open,close){
  document.querySelectorAll('[data-open-pad-settings]').forEach(b=>b.addEventListener('click',show));
  q('padClose').addEventListener('click',hide);
  q('padSave').addEventListener('click',()=>{save();hide();});
- q('padReset').addEventListener('click',()=>{config=JSON.parse(JSON.stringify(defaults));save();reflect();});
+ q('padReset').addEventListener('click',()=>{config=JSON.parse(JSON.stringify(defaults));updateSelectedMode();save();reflect();updatePreview(window.Module);});
+ q('padDigitalReset').addEventListener('click',()=>{
+   config.mode=2;
+   returnToDigital();
+   save();reflect();updatePreview(window.Module);
+ });
+
  modal.addEventListener('click',e=>{if(e.target===modal)hide();});
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!modal.hidden){e.stopImmediatePropagation();hide();}},true);
- const register=(id,key,transform)=>q(id).addEventListener('change',e=>{config[key]=transform(e.target);save();reflect();});
+ const register=(id,key,transform)=>q(id).addEventListener('change',e=>{config[key]=transform(e.target);save();if(key==='mode')updateSelectedMode();reflect();});
  register('padMode','mode',el=>Number(el.value));
  register('padDevice','device',el=>Number(el.value));
  register('padLeftAxis','axisL',el=>Number(el.value));
@@ -203,7 +252,7 @@ function initUI(open,close){
  });
  reflect();
 }
-function resetForTests(){config=JSON.parse(JSON.stringify(defaults));effectiveMode=0;applied={buttons:65535,axes:0x80808080,analog:0};}
+function resetForTests(){config=JSON.parse(JSON.stringify(defaults));effectiveMode=0;analogActivationSince=0;modeSwitches=0;manualDigital=false;applied={buttons:65535,axes:0x80808080,analog:0};}
 load();
-return {defaults,bits,names,config:()=>config,set:(opts)=>{config={...config,...opts,buttons:{...config.buttons,...(opts.buttons||{})}};save();},sample,publish,initUI,resetForTests,toByte};
+return {defaults,bits,names,config:()=>config,set:(opts)=>{config={...config,...opts,buttons:{...config.buttons,...(opts.buttons||{})}};save();if(Object.prototype.hasOwnProperty.call(opts,'mode'))updateSelectedMode();},sample,publish,initUI,resetForTests,toByte,returnToDigital,debug:()=>({effectiveMode,modeSwitches,analogActivationSince,manualDigital})};
 });

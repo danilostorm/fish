@@ -43,7 +43,7 @@ assert.equal(recorded.buttons,0xFFFF,'Start must be released');
 pad.publish(wasm,true,new Set(['KeyC']),{Enter:3});
 assert.equal(recorded.mode,1,'Keyboard reel must engage DualShock analog');
 pad.publish(wasm,true,new Set(['ArrowDown']),{ArrowDown:6});
-assert.equal(recorded.mode,0,'Directional keyboard menu input must be digital');
+assert.equal(recorded.mode,1,'Once reeling, d-pad must NOT flap the PS1 analog controller type');
 assert.equal(recorded.buttons,0xFFBF,'Keyboard down must reach PS1');
 physical={index:0,id:'Test',connected:true,mapping:'standard',axes:[0,0,.8,-.4],buttons:Array.from({length:16},()=>({pressed:false}))};
 pad.publish(wasm,true,new Set(),{});
@@ -51,6 +51,56 @@ assert.equal(recorded.mode,1,'Right stick must engage DualShock analog');
 assert.equal(recorded.connected,1,'Connected gamepad flag must reach WASM');
 physical.axes=[0,0,0,0];physical.buttons[9].pressed=true;
 pad.publish(wasm,true,new Set(),{});
-assert.equal(recorded.mode,0,'Physical gamepad Start must work on digital title screen');
+assert.equal(recorded.mode,1,'Physical Start must NOT flap analog type during gameplay');
 assert.equal((recorded.buttons>>3)&1,0,'Physical Start pressed');
 console.log('Fish keyboard Start/release, direction and analog reel: all checks passed');
+
+// Gamepad regressions: stable hybrid mode across idle noise, physical Start,
+// A/X buttons, d-pad, thumbstick return to center, and active fishing.
+pad.resetForTests();
+physical.axes=[0,0,0,0];physical.buttons[9].pressed=false;
+physical.buttons[0].pressed=false;
+let clock=1000;
+Object.defineProperty(global,'performance',{configurable:true,value:{now:()=>clock}});
+for(let frame=0;frame<150;frame++){
+  clock+=16;
+  physical.axes=[.03*Math.sin(frame),0,.08*Math.cos(frame),.06*Math.sin(frame)];
+  physical.buttons[0].pressed=(frame%18)<4;
+  physical.buttons[9].pressed=(frame%39)<5;
+  physical.buttons[12]={pressed:(frame%27)<7};
+  pad.publish(wasm,true,new Set(),{});
+  assert.equal(recorded.mode,0,'idle noise/buttons must leave digital pad stable');
+}
+assert.equal(pad.debug().modeSwitches,0,'no flapping while idle');
+physical.buttons[0].pressed=false;physical.buttons[9].pressed=false;
+physical.buttons[12].pressed=false;
+for(let frame=0;frame<35;frame++){
+  clock+=16;physical.axes=[0,0,.9,-.7];
+  pad.publish(wasm,true,new Set(),{});
+}
+assert.equal(recorded.mode,1,'intentional right stick engages analog');
+assert.equal(pad.debug().modeSwitches,1,'exactly one digital-to-analog switch');
+for(let frame=0;frame<350;frame++){
+  clock+=16;
+  physical.axes=[0,0,.05*Math.sin(frame),.07*Math.cos(frame)];
+  physical.buttons[9].pressed=frame%51<5;
+  physical.buttons[12].pressed=frame%43<7;
+  pad.publish(wasm,true,new Set(),{});
+  assert.equal(recorded.mode,1,'must remain analog even with Start, d-pad, neutral axes');
+}
+assert.equal(pad.debug().modeSwitches,1,'must not flap modes in gameplay');
+pad.returnToDigital();
+clock+=16;
+physical.axes=[0,0,.9,.1];
+pad.publish(wasm,true,new Set(),{});
+assert.equal(recorded.mode,0,'explicit digital override must win over held stick');
+clock+=16;physical.axes=[0,0,0,0];
+pad.publish(wasm,true,new Set(),{});
+assert.equal(recorded.mode,0,'menu remains digital after release');
+pad.set({mode:0});clock+=16;physical.axes=[0,0,.9,0];
+pad.publish(wasm,true,new Set(),{});
+assert.equal(recorded.mode,0,'manual digital mode fixed');
+pad.set({mode:1});clock+=16;physical.buttons[9].pressed=true;
+pad.publish(wasm,true,new Set(),{});
+assert.equal(recorded.mode,1,'manual analog mode fixed');
+console.log('Gamepad stable-mode regression: 0 mode flaps in 500 simulated frames');

@@ -146,3 +146,5 @@ Em teste real no Chromium AEROCOOL, o WSOLA v2 ficou 30 segundos sem underruns o
 ## DualShock analógico e configuração de controles
 
 O navegador agora transmite os **4 eixos analógicos reais (LX/LY/RX/RY)** e os botões ao hardware SIO do PS1 recompilado, com seleção automática entre controle digital nos menus/teclado e modo DualShock analógico ao mover o stick. Abra **Configurar controle** no painel ou durante a partida para ajustar controles Xbox/iPega/PlayStation, zona morta, eixos do stick direito, inversão, botões e manivela via R3. No teclado, segure **C** para simular uma rotação contínua do stick direito. Os ajustes ficam salvos no navegador. Confira [configuração e testes](docs/CONTROLS_ANALOG.md).
+
+O modo **Automático estável** mantém o tipo PS1 digital nos menus, muda para DualShock analógico ao girar o stick direito e só retorna ao digital por escolha do jogador. Veja docs/CONTROLS_ANALOG.md.

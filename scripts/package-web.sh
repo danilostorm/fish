@@ -23,6 +23,7 @@ cp "$BUILD_DIR/$BASE.js" "$BUILD_DIR/$BASE.wasm" dist-web/
 cp web/index.html web/_headers dist-web/
 cp web/audio-wsola.js dist-web/
 cp web/fish-controls.js dist-web/
+cp web/fish-pad-diagnostic.js dist-web/
 mkdir -p dist-web/assets
 cp -a web/assets/. dist-web/assets/
 cp "$BIO/openbios.bin" "$BIO/openbios-fastboot.bin" dist-web/

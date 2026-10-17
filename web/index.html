@@ -159,6 +159,10 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
 .padcfg-mode-actions button{padding:9px 12px;border:1px solid #269ccb;border-radius:9px;background:#07537b;color:white;font-size:12px;font-weight:800}
 .padcfg-mode-actions button:disabled{opacity:.4}
 .padcfg-mode-actions p{flex:1 1 220px;font-size:11px;color:#c2eaff;margin:0;line-height:1.5}
+.padcfg-diag{border-top:1px solid #255b7e;padding-top:11px;display:flex;flex-wrap:wrap;gap:8px}
+.padcfg-diag strong{width:100%;font-size:12px}
+.padcfg-diag p{width:100%;flex:none!important;font-size:11px;line-height:1.5;color:#b7e6ff}
+.padcfg-diag button{flex:1 1 180px}
 .padcfg-hint{color:#b6e0ee;font-size:11px;line-height:1.6;margin:14px 0}
 .padcfg-actions{display:flex;justify-content:space-between;gap:12px}
 .padcfg-actions button{padding:11px 15px;border-radius:9px;border:1px solid #20a6df;background:#054375;color:white;font-weight:800}
@@ -316,6 +320,7 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
     <div class="padcfg-head"><div><span class="padcfg-kicker">HOSTSTORM · CONTROLES</span><h2>Controle de pesca</h2><p>Configure o DualShock para lançar, fisgar e recolher a linha.</p></div>
       <button id="padClose" type="button" aria-label="Fechar configurações">✕</button></div>
     <div class="padcfg-device"><span class="padcfg-light"></span><span id="padStatusLive">Conecte um controle USB/Bluetooth e pressione um botão</span></div>
+    <button type="button" id="padDiagShortcut" class="pad-config-entry" style="margin:0 0 12px;width:100%;text-align:center">🔎 Testar START e enviar diagnóstico (12 segundos)</button>
     <div class="padcfg-fields">
       <label>Controle detectado<select id="padDevice"><option value="-1">Automático</option></select></label>
       <label>Modo do PlayStation<select id="padMode"><option value="2">Automático estável (recomendado)</option><option value="1">Analógico fixo (pode bloquear START)</option><option value="0">Digital fixo (menus)</option></select></label>
@@ -333,6 +338,14 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
       <button type="button" id="padDigitalReset">↩ Voltar para digital (menus)</button>
       <p>Modo automático: inicia digital e ativa o analógico após usar a manivela. Não alterna sozinho durante a pescaria.</p>
       <p id="padActiveButtons" aria-live="off">Botões pressionados: nenhum</p>
+      <div class="padcfg-diag" style="width:100%">
+        <strong>Teste de START no seu controle</strong>
+        <p>Com o jogo aberto, pressione Iniciar diagnóstico e aperte START várias vezes nos 12 segundos seguintes. Somente números dos botões e sinais do jogo são enviados ao servidor, sem informações pessoais ou identificação do controle.</p>
+        <button id="padRunDiagnostic" type="button">🔎 Iniciar diagnóstico de 12 segundos e enviar</button>
+        <button id="padCopyDiagnostic" type="button" disabled>Copiar diagnóstico</button>
+        <p id="padDiagStatus" role="status">Aguardando seu teste.</p>
+        <textarea id="padDiagText" hidden readonly aria-label="Diagnóstico para copiar" rows="5" style="width:100%"></textarea>
+      </div>
     </div>
     <h3>Mapear botões do controle</h3>
     <div class="padcfg-map">
@@ -353,6 +366,7 @@ canvas#canvas{display:block;background:#000;object-fit:contain;image-rendering:p
 </div>
 <script src="audio-wsola.js"></script>
 <script src="fish-controls.js"></script>
+<script src="fish-pad-diagnostic.js"></script>
 <script>
 'use strict';
 (function () {

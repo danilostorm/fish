@@ -57,8 +57,6 @@ O usuário confirmou detecção de gamepad Xbox 360, mas houve trocas rápidas e
 
 Testes: 500 frames simulados com ruído, Start, A e d-pad sem trocas; teste Chromium com gamepad virtual, motor WebAssembly e comunicação SIO observou 0 transições durante menus, 1 transição na manivela, nenhuma alternância após Start/d-pad durante o uso analógico e retorno explícito ao digital. O teste físico no Xbox 360 do usuário continua necessário.
 
-## Diagnóstico de START com controle físico (opt-in)
+## Interface simplificada após confirmação dos controles
 
-Se Start não funcionar no navegador de uma pessoa, o nginx mostra apenas pedidos HTTP e não recebe os eventos Gamepad API automaticamente. O botão **Testar o botão START e enviar diagnóstico (12 segundos)** aparece logo abaixo da detecção do controle. O usuário inicia voluntariamente a coleta, pressiona Start algumas vezes, e o navegador envia um resumo limitado por GET ao endpoint `/pad-diagnostic`, que retorna HTTP 204 sem gravar arquivos. O Nginx já registra em seus logs de acesso os índices dos botões pressionados, o bit START mapeado, o bit aplicado no runtime WASM, modo de PS1 e evolução dos VBlanks. Não há gravação de áudio/tela, ID do controle, nem teclas digitadas; o acesso ao site continua sujeito aos metadados usuais do log HTTP (IP, user agent). Pode-se usar Copiar diagnóstico em caso de falha da transmissão.
-
-**Interpretação:** `sawButton[9]>0` comprova Start do Xbox na API; `mappedStartSamples>0` comprova a tradução a PS1; `wasmStartSamples>0` comprova que foi aplicado no sampler WebAssembly. Se tudo isso ocorrer, mas a tela não avançar, a próxima investigação precisa ser a leitura do pad pelo jogo no barramento SIO, ou verificar se a tela realmente está esperando Start.
+Após confirmação de funcionamento do Xbox 360, removemos o teste temporário de 12 segundos, seu JavaScript e a rota /pad-diagnostic, que enviava relatórios de entrada ao servidor. O menu normal continua exibindo os analógicos, os botões pressionados e os modos Digital/Analógico para configuração local. O log interno de inicialização permanece oculto para não interferir no funcionamento do runtime.
